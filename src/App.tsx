@@ -1,0 +1,347 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState, useEffect } from 'react';
+import { Navbar } from './components/Navbar';
+import { Footer } from './components/Footer';
+import { Toast } from './components/Toast';
+import { Home } from './pages/Home';
+import { Shop } from './pages/Shop';
+import { ProductDetail } from './pages/ProductDetail';
+import { Cart } from './pages/Cart';
+import { Checkout } from './pages/Checkout';
+import { Confirmation } from './pages/Confirmation';
+import { About } from './pages/About';
+import { Contact } from './pages/Contact';
+import { AdminLogin } from './pages/AdminLogin';
+import { AdminDashboard } from './pages/AdminDashboard';
+import { AdminProducts } from './pages/AdminProducts';
+import { AdminOrders } from './pages/AdminOrders';
+import { AdminCustomers } from './pages/AdminCustomers';
+import { AdminPromoCodes } from './pages/AdminPromoCodes';
+import { AdminSettings } from './pages/AdminSettings';
+import { AdminReviews } from './pages/AdminReviews';
+import { AdminCovers } from './pages/AdminCovers';
+import { AdminAnalytics } from './pages/AdminAnalytics';
+import { Page, Product, CartItem, Order, Customer, PromoCode, AppSettings, Review, INITIAL_PRODUCTS, INITIAL_SETTINGS, INITIAL_REVIEWS } from './types';
+import { motion, AnimatePresence } from 'motion/react';
+
+export default function App() {
+  // --- Core State ---
+  const [currentPage, setCurrentPage] = useState<Page>('home');
+  const [adminSection, setAdminSection] = useState<'dashboard' | 'analytics' | 'products' | 'orders' | 'customers' | 'promo' | 'settings' | 'reviews' | 'covers'>('dashboard');
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [isArabic, setIsArabic] = useState(false);
+
+  // --- Admin & Data State ---
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
+    return localStorage.getItem('riffa_admin_logged_in') === 'true';
+  });
+  
+  const [products, setProducts] = useState<Product[]>(() => {
+    const saved = localStorage.getItem('riffa_products');
+    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+  });
+  
+  const [orders, setOrders] = useState<Order[]>(() => {
+    const saved = localStorage.getItem('riffa_orders');
+    return saved ? JSON.parse(saved) : [];
+  });
+  
+  const [customers, setCustomers] = useState<Customer[]>(() => {
+    const saved = localStorage.getItem('riffa_customers');
+    return saved ? JSON.parse(saved) : [];
+  });
+  
+  const [promoCodes, setPromoCodes] = useState<PromoCode[]>(() => {
+    const saved = localStorage.getItem('riffa_promo_codes');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [reviews, setReviews] = useState<Review[]>(() => {
+    const saved = localStorage.getItem('riffa_reviews');
+    return saved ? JSON.parse(saved) : INITIAL_REVIEWS;
+  });
+  
+  const [settings, setSettings] = useState<AppSettings>(() => {
+    const saved = localStorage.getItem('riffa_settings');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return { 
+          ...INITIAL_SETTINGS, 
+          ...parsed,
+          categoryCovers: { ...INITIAL_SETTINGS.categoryCovers, ...(parsed.categoryCovers || {}) }
+        };
+      } catch (e) {
+        console.error('Error parsing settings:', e);
+        return INITIAL_SETTINGS;
+      }
+    }
+    return INITIAL_SETTINGS;
+  });
+
+  // --- Persistence Effects ---
+  useEffect(() => {
+    const savedCart = localStorage.getItem('riffa_cart');
+    if (savedCart) {
+      try { setCart(JSON.parse(savedCart)); } catch (e) { console.error(e); }
+    }
+  }, []);
+
+  useEffect(() => { localStorage.setItem('riffa_cart', JSON.stringify(cart)); }, [cart]);
+  useEffect(() => { localStorage.setItem('riffa_products', JSON.stringify(products)); }, [products]);
+  useEffect(() => { localStorage.setItem('riffa_orders', JSON.stringify(orders)); }, [orders]);
+  useEffect(() => { localStorage.setItem('riffa_customers', JSON.stringify(customers)); }, [customers]);
+  useEffect(() => { localStorage.setItem('riffa_promo_codes', JSON.stringify(promoCodes)); }, [promoCodes]);
+  useEffect(() => { localStorage.setItem('riffa_reviews', JSON.stringify(reviews)); }, [reviews]);
+  useEffect(() => { localStorage.setItem('riffa_settings', JSON.stringify(settings)); }, [settings]);
+
+  // --- Navigation & Hash Effects ---
+  useEffect(() => {
+    const handleHashChange = () => {
+      if (window.location.hash === '#admin') {
+        setCurrentPage('admin');
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    handleHashChange();
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [currentPage, selectedProduct]);
+
+  // --- Handlers ---
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const addToCart = (product: Product, color?: string, size?: string) => {
+    const selectedColor = color || product.colors[0];
+    const selectedSize = size || product.sizes[0];
+
+    setCart(prevCart => {
+      const existingItem = prevCart.find(
+        item => item.id === product.id && 
+        item.selectedColor === selectedColor && 
+        item.selectedSize === selectedSize
+      );
+
+      if (existingItem) {
+        return prevCart.map(item => 
+          item === existingItem 
+            ? { ...item, quantity: item.quantity + 1 } 
+            : item
+        );
+      }
+
+      return [...prevCart, { ...product, quantity: 1, selectedColor, selectedSize }];
+    });
+
+    showToast(`Added ${product.name} to cart`);
+  };
+
+  const updateQuantity = (id: string, color: string, size: string, delta: number) => {
+    setCart(prevCart => 
+      prevCart.map(item => {
+        if (item.id === id && item.selectedColor === color && item.selectedSize === size) {
+          const newQty = Math.max(1, item.quantity + delta);
+          return { ...item, quantity: newQty };
+        }
+        return item;
+      })
+    );
+  };
+
+  const removeFromCart = (id: string, color: string, size: string) => {
+    setCart(prevCart => 
+      prevCart.filter(item => 
+        !(item.id === id && item.selectedColor === color && item.selectedSize === size)
+      )
+    );
+    showToast('Removed item from cart');
+  };
+
+  const placeOrder = (customerData: any, totals: any) => {
+    const newOrder: Order = {
+      id: Math.random().toString(36).substr(2, 9),
+      orderNumber: `RF-${Date.now().toString().slice(-6)}`,
+      date: new Date().toISOString(),
+      status: 'Pending',
+      ...customerData,
+      ...totals,
+      items: cart.map(item => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        selectedColor: item.selectedColor,
+        selectedSize: item.selectedSize
+      }))
+    };
+    
+    setOrders(prev => [newOrder, ...prev]);
+    
+    // Update customer data
+    setCustomers(prev => {
+      const existing = prev.find(c => c.email === customerData.email);
+      if (existing) {
+        return prev.map(c => c.email === customerData.email ? {
+          ...c,
+          totalOrders: c.totalOrders + 1,
+          totalSpent: c.totalSpent + totals.total,
+          lastOrderDate: new Date().toISOString()
+        } : c);
+      }
+      return [...prev, {
+        id: Math.random().toString(36).substr(2, 9),
+        name: customerData.name,
+        email: customerData.email,
+        phone: customerData.phone,
+        governorate: customerData.governorate,
+        totalOrders: 1,
+        totalSpent: totals.total,
+        lastOrderDate: new Date().toISOString(),
+        registrationDate: new Date().toISOString()
+      }];
+    });
+
+    // Reduce stock
+    setProducts(prev => prev.map(p => {
+      const cartItem = cart.find(item => item.id === p.id);
+      if (cartItem) {
+        return { ...p, stockQuantity: Math.max(0, p.stockQuantity - cartItem.quantity) };
+      }
+      return p;
+    }));
+
+    setCart([]);
+    setCurrentPage('confirmation');
+    showToast('Order placed successfully!');
+  };
+
+  const handleAdminLogin = (success: boolean) => {
+    if (success) {
+      setIsAdminLoggedIn(true);
+      localStorage.setItem('riffa_admin_logged_in', 'true');
+    }
+  };
+
+  const handleAdminLogout = () => {
+    setIsAdminLoggedIn(false);
+    localStorage.removeItem('riffa_admin_logged_in');
+    setCurrentPage('home');
+    window.location.hash = '';
+  };
+
+  const renderPage = () => {
+    if (currentPage === 'admin') {
+      if (!isAdminLoggedIn) {
+        return <AdminLogin onLogin={handleAdminLogin} />;
+      }
+      
+      const adminProps = {
+        products, setProducts,
+        orders, setOrders,
+        customers, setCustomers,
+        promoCodes, setPromoCodes,
+        reviews, setReviews,
+        settings, setSettings,
+        onLogout: handleAdminLogout,
+        activeSection: adminSection,
+        setActiveSection: setAdminSection,
+        showToast
+      };
+
+      switch (adminSection) {
+        case 'dashboard': return <AdminDashboard {...adminProps} />;
+        case 'analytics': return <AdminAnalytics {...adminProps} />;
+        case 'products': return <AdminProducts {...adminProps} />;
+        case 'orders': return <AdminOrders {...adminProps} />;
+        case 'customers': return <AdminCustomers {...adminProps} />;
+        case 'promo': return <AdminPromoCodes {...adminProps} />;
+        case 'reviews': return <AdminReviews {...adminProps} />;
+        case 'covers': return <AdminCovers {...adminProps} />;
+        case 'settings': return <AdminSettings {...adminProps} />;
+        default: return <AdminDashboard {...adminProps} />;
+      }
+    }
+
+    switch (currentPage) {
+      case 'home':
+        return <Home setCurrentPage={setCurrentPage} setSelectedProduct={setSelectedProduct} onAddToCart={addToCart} products={products.filter(p => p.status === 'Active')} settings={settings} reviews={reviews} />;
+      case 'shop':
+        return <Shop setCurrentPage={setCurrentPage} setSelectedProduct={setSelectedProduct} onAddToCart={addToCart} products={products.filter(p => p.status === 'Active')} settings={settings} />;
+      case 'product':
+        return selectedProduct ? (
+          <ProductDetail 
+            product={selectedProduct} 
+            setCurrentPage={setCurrentPage} 
+            setSelectedProduct={setSelectedProduct} 
+            onAddToCart={addToCart} 
+            products={products.filter(p => p.status === 'Active')}
+          />
+        ) : <Home setCurrentPage={setCurrentPage} setSelectedProduct={setSelectedProduct} onAddToCart={addToCart} products={products.filter(p => p.status === 'Active')} />;
+      case 'cart':
+        return <Cart cart={cart} updateQuantity={updateQuantity} removeFromCart={removeFromCart} setCurrentPage={setCurrentPage} promoCodes={promoCodes} settings={settings} />;
+      case 'checkout':
+        return <Checkout cart={cart} setCurrentPage={setCurrentPage} onPlaceOrder={placeOrder} settings={settings} promoCodes={promoCodes} />;
+      case 'confirmation':
+        return <Confirmation setCurrentPage={setCurrentPage} />;
+      case 'about':
+        return <About setCurrentPage={setCurrentPage} settings={settings} />;
+      case 'contact':
+        return <Contact setCurrentPage={setCurrentPage} settings={settings} />;
+      default:
+        return <Home setCurrentPage={setCurrentPage} setSelectedProduct={setSelectedProduct} onAddToCart={addToCart} products={products.filter(p => p.status === 'Active')} settings={settings} reviews={reviews} />;
+    }
+  };
+
+  return (
+    <div className={`min-h-screen flex flex-col ${isArabic ? 'rtl' : ''}`}>
+      {currentPage !== 'admin' && (
+        <Navbar 
+          currentPage={currentPage} 
+          setCurrentPage={setCurrentPage} 
+          cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)} 
+          isArabic={isArabic}
+          setIsArabic={setIsArabic}
+          announcement={settings.announcementBar}
+          logo={settings.logo}
+        />
+      )}
+
+      <main className={`flex-grow ${currentPage === 'admin' && isAdminLoggedIn ? '' : 'pt-20'}`}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentPage + (currentPage === 'admin' ? adminSection : '')}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.4, ease: "easeInOut" }}
+          >
+            {renderPage()}
+          </motion.div>
+        </AnimatePresence>
+      </main>
+
+      {currentPage !== 'admin' && <Footer setCurrentPage={setCurrentPage} settings={settings} />}
+
+      {toast && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast(null)} 
+        />
+      )}
+    </div>
+  );
+}
+

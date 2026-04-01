@@ -1,0 +1,219 @@
+import React, { useState } from 'react';
+import { AdminSidebar } from '../components/AdminSidebar';
+import { Save, Globe, Truck, Share2, Megaphone, FileText, Check } from 'lucide-react';
+import { AppSettings, Product, Order, Customer, PromoCode } from '../types';
+
+interface AdminSettingsProps {
+  settings: AppSettings;
+  setSettings: React.Dispatch<React.SetStateAction<AppSettings>>;
+  onLogout: () => void;
+  activeSection: string;
+  setActiveSection: (section: any) => void;
+  showToast: (message: string, type?: 'success' | 'error') => void;
+}
+
+export function AdminSettings({ settings, setSettings, onLogout, activeSection, setActiveSection, showToast }: AdminSettingsProps) {
+  const [formData, setFormData] = useState<AppSettings>(settings);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSettings(formData);
+    showToast('Settings saved successfully!');
+  };
+
+  return (
+    <div className="flex min-h-screen bg-[#faf8f5]">
+      <AdminSidebar activeSection={activeSection} setActiveSection={setActiveSection} onLogout={onLogout} logo={settings.logo} />
+      
+      <main className="flex-grow ml-64 p-10">
+        <header className="flex justify-between items-center mb-10">
+          <div>
+            <h1 className="text-3xl font-cormorant font-bold text-[#2d2535]">Store Settings</h1>
+            <p className="text-sm text-gray-500 mt-1">Configure your store's global settings and content.</p>
+          </div>
+          <button 
+            onClick={handleSubmit}
+            className="flex items-center gap-2 px-8 py-3 bg-[#2d2535] text-[#faf8f5] rounded-xl font-bold hover:bg-[#3d3545] transition-all shadow-lg shadow-[#2d2535]/20"
+          >
+            <Save className="w-5 h-5" />
+            Save Changes
+          </button>
+        </header>
+
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* General Settings */}
+          <div className="bg-white p-8 rounded-3xl shadow-sm border border-[#e8ddd0] space-y-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Globe className="w-5 h-5 text-[#c9a96e]" />
+              <h2 className="text-lg font-bold text-[#2d2535]">General Information</h2>
+            </div>
+            
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Store Name</label>
+              <input 
+                type="text" 
+                value={formData.storeName}
+                onChange={(e) => setFormData({ ...formData, storeName: e.target.value })}
+                className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Store Logo URL</label>
+              <input 
+                type="text" 
+                value={formData.logo}
+                onChange={(e) => setFormData({ ...formData, logo: e.target.value })}
+                className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e]"
+                placeholder="https://example.com/logo.png"
+              />
+              <p className="text-[10px] text-gray-400 mt-2 italic">
+                Note: Local file paths (e.g., file:///C:/...) will not work. Please upload your logo to a web host and use the URL here.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">WhatsApp Number</label>
+              <input 
+                type="text" 
+                value={formData.whatsappNumber}
+                onChange={(e) => setFormData({ ...formData, whatsappNumber: e.target.value })}
+                className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Store Address</label>
+              <textarea 
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e] min-h-[80px]"
+              />
+            </div>
+          </div>
+
+          {/* Shipping Settings */}
+          <div className="bg-white p-8 rounded-3xl shadow-sm border border-[#e8ddd0] space-y-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Truck className="w-5 h-5 text-[#c9a96e]" />
+              <h2 className="text-lg font-bold text-[#2d2535]">Shipping & Logistics</h2>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Default Standard Shipping (EGP)</label>
+                <input 
+                  type="number" 
+                  value={formData.shippingFeeStandard}
+                  onChange={(e) => setFormData({ ...formData, shippingFeeStandard: Number(e.target.value) })}
+                  className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e]"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-4">Shipping Fees by Governorate (EGP)</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto p-2 border border-[#e8ddd0] rounded-xl bg-[#faf8f5] custom-scrollbar">
+                  {Object.entries(formData.governorateShippingFees).map(([gov, fee]) => (
+                    <div key={gov} className="flex items-center justify-between gap-3 p-3 bg-white rounded-lg border border-[#e8ddd0]">
+                      <span className="text-xs font-medium text-[#2d2535]">{gov}</span>
+                      <input 
+                        type="number" 
+                        value={fee}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          governorateShippingFees: {
+                            ...formData.governorateShippingFees,
+                            [gov]: Number(e.target.value)
+                          }
+                        })}
+                        className="w-20 px-2 py-1 text-xs border border-[#e8ddd0] rounded focus:outline-none focus:border-[#c9a96e]"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Free Shipping Threshold (EGP)</label>
+              <input 
+                type="number" 
+                value={formData.freeShippingThreshold}
+                onChange={(e) => setFormData({ ...formData, freeShippingThreshold: Number(e.target.value) })}
+                className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e]"
+              />
+            </div>
+          </div>
+
+          {/* Marketing & Social */}
+          <div className="bg-white p-8 rounded-3xl shadow-sm border border-[#e8ddd0] space-y-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Share2 className="w-5 h-5 text-[#c9a96e]" />
+              <h2 className="text-lg font-bold text-[#2d2535]">Social Media & Marketing</h2>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Instagram URL</label>
+              <input 
+                type="text" 
+                value={formData.instagramUrl}
+                onChange={(e) => setFormData({ ...formData, instagramUrl: e.target.value })}
+                className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Facebook URL</label>
+              <input 
+                type="text" 
+                value={formData.facebookUrl}
+                onChange={(e) => setFormData({ ...formData, facebookUrl: e.target.value })}
+                className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">TikTok URL</label>
+              <input 
+                type="text" 
+                value={formData.tiktokUrl}
+                onChange={(e) => setFormData({ ...formData, tiktokUrl: e.target.value })}
+                className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e]"
+              />
+            </div>
+          </div>
+
+          {/* Store Content */}
+          <div className="bg-white p-8 rounded-3xl shadow-sm border border-[#e8ddd0] space-y-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Megaphone className="w-5 h-5 text-[#c9a96e]" />
+              <h2 className="text-lg font-bold text-[#2d2535]">Store Content</h2>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Announcement Bar Text</label>
+              <input 
+                type="text" 
+                value={formData.announcementBar}
+                onChange={(e) => setFormData({ ...formData, announcementBar: e.target.value })}
+                className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e]"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <FileText className="w-4 h-4 text-gray-400" />
+                <label className="block text-xs font-semibold text-gray-500 uppercase">About Page Text</label>
+              </div>
+              <textarea 
+                value={formData.aboutText}
+                onChange={(e) => setFormData({ ...formData, aboutText: e.target.value })}
+                className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e] min-h-[150px]"
+              />
+            </div>
+          </div>
+        </form>
+      </main>
+    </div>
+  );
+}
