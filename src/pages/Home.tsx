@@ -44,10 +44,6 @@ export const Home: React.FC<HomeProps> = ({
             transition={{ duration: 1, ease: "easeOut" }}
             className="space-y-6"
           >
-            <div className="flex flex-col items-center justify-center mb-8">
-              <span className="text-5xl md:text-7xl font-serif leading-none text-gold mb-2">رفة</span>
-              <span className="text-sm md:text-base tracking-[0.6em] font-light uppercase text-gold/80 border-t border-gold/20 pt-2">RIFFA</span>
-            </div>
             <h1 className="text-6xl md:text-9xl font-serif tracking-tighter leading-[0.9]">
               Timeless Elegance <br />
               <span className="italic font-light text-gold/90">from Egypt</span>
