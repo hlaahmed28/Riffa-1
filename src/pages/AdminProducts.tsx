@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AdminSidebar } from '../components/AdminSidebar';
 import { Plus, Search, Filter, Edit2, Trash2, X, Image as ImageIcon, Check, AlertCircle, Upload } from 'lucide-react';
 import { Product, AppSettings, Order, Customer, PromoCode } from '../types';
+import { db } from '../lib/db';
 
 interface AdminProductsProps {
   products: Product[];
@@ -98,31 +99,48 @@ export function AdminProducts({ products, setProducts, settings, onLogout, activ
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingProduct) {
-      setProducts(prev => prev.map(p => p.id === editingProduct.id ? { ...p, ...formData } as Product : p));
-      showToast('Product updated successfully!');
-    } else {
-      const newProduct: Product = {
-        ...formData,
-        id: Math.random().toString(36).substr(2, 9),
-      } as Product;
-      setProducts(prev => [newProduct, ...prev]);
-      showToast('Product added successfully!');
+    try {
+      if (editingProduct) {
+        const updatedProduct = { ...editingProduct, ...formData } as Product;
+        await db.updateProduct(updatedProduct);
+        setProducts(prev => prev.map(p => p.id === editingProduct.id ? updatedProduct : p));
+        showToast('Product updated successfully!');
+      } else {
+        const newProduct: Product = {
+          ...formData,
+          id: Math.random().toString(36).substr(2, 9),
+        } as Product;
+        await db.updateProduct(newProduct);
+        setProducts(prev => [newProduct, ...prev]);
+        showToast('Product added successfully!');
+      }
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error('Error saving product:', error);
+      showToast('Failed to save product.', 'error');
     }
-    setIsModalOpen(false);
   };
 
   const handleDelete = (id: string) => {
     setDeleteConfirmId(id);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deleteConfirmId) {
-      setProducts(prev => prev.filter(p => p.id !== deleteConfirmId));
-      setDeleteConfirmId(null);
-      showToast('Product deleted successfully!');
+      try {
+        const { supabase } = await import('../lib/supabase');
+        const { error } = await supabase.from('products').delete().eq('id', deleteConfirmId);
+        if (error) throw error;
+        
+        setProducts(prev => prev.filter(p => p.id !== deleteConfirmId));
+        setDeleteConfirmId(null);
+        showToast('Product deleted successfully!');
+      } catch (error) {
+        console.error('Error deleting product:', error);
+        showToast('Failed to delete product.', 'error');
+      }
     }
   };
 

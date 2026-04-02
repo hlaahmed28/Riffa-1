@@ -27,6 +27,9 @@ import { AdminCovers } from './pages/AdminCovers';
 import { AdminAnalytics } from './pages/AdminAnalytics';
 import { Page, Product, CartItem, Order, Customer, PromoCode, AppSettings, Review, INITIAL_PRODUCTS, INITIAL_SETTINGS, INITIAL_REVIEWS } from './types';
 import { motion, AnimatePresence } from 'motion/react';
+import { db } from './lib/db';
+
+import { ShippingReturns } from './pages/ShippingReturns';
 
 export default function App() {
   // --- Core State ---
@@ -36,6 +39,7 @@ export default function App() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [isArabic, setIsArabic] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // --- Admin & Data State ---
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
@@ -86,6 +90,85 @@ export default function App() {
   });
 
   // --- Persistence Effects ---
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        const [supabaseProducts, supabaseSettings, supabaseReviews, supabaseOrders] = await Promise.all([
+          db.getProducts(),
+          db.getSettings(),
+          db.getReviews(),
+          db.getOrders()
+        ]);
+
+        if (supabaseProducts) setProducts(supabaseProducts);
+        if (supabaseSettings) setSettings(supabaseSettings);
+        if (supabaseReviews) setReviews(supabaseReviews);
+        
+        if (supabaseOrders) {
+          // Process orders to match the Order type (flatten order_items)
+          const processedOrders = supabaseOrders.map((o: any) => ({
+            id: o.id,
+            orderNumber: o.order_number,
+            date: o.created_at,
+            customerName: o.customer_name,
+            email: o.email,
+            phone: o.phone,
+            governorate: o.governorate,
+            address: o.address,
+            subtotal: o.subtotal,
+            shipping: o.shipping,
+            total: o.total,
+            paymentMethod: o.payment_method,
+            paymentScreenshot: o.payment_screenshot,
+            status: o.status,
+            notes: o.notes,
+            items: o.order_items.map((oi: any) => ({
+              id: oi.product_id,
+              name: oi.name,
+              price: oi.price,
+              quantity: oi.quantity,
+              selectedColor: oi.selected_color,
+              selectedSize: oi.selected_size
+            }))
+          }));
+          setOrders(processedOrders);
+
+          // Derive customers from orders
+          const derivedCustomers: Customer[] = [];
+          processedOrders.forEach(o => {
+            const existing = derivedCustomers.find(c => c.email === o.email || c.phone === o.phone);
+            if (existing) {
+              existing.totalOrders += 1;
+              existing.totalSpent += o.total;
+              if (new Date(o.date) > new Date(existing.lastOrderDate)) {
+                existing.lastOrderDate = o.date;
+              }
+            } else {
+              derivedCustomers.push({
+                id: o.id,
+                name: o.customerName,
+                email: o.email,
+                phone: o.phone,
+                governorate: o.governorate,
+                totalOrders: 1,
+                totalSpent: o.total,
+                lastOrderDate: o.date
+              });
+            }
+          });
+          setCustomers(derivedCustomers);
+        }
+      } catch (error: any) {
+        console.error('Error fetching data from Supabase:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
   useEffect(() => {
     const savedCart = localStorage.getItem('riffa_cart');
     if (savedCart) {
@@ -169,62 +252,98 @@ export default function App() {
     showToast('Removed item from cart');
   };
 
-  const placeOrder = (customerData: any, totals: any) => {
-    const newOrder: Order = {
-      id: Math.random().toString(36).substr(2, 9),
-      orderNumber: `RF-${Date.now().toString().slice(-6)}`,
-      date: new Date().toISOString(),
-      status: 'Pending',
-      ...customerData,
-      ...totals,
-      items: cart.map(item => ({
-        id: item.id,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-        selectedColor: item.selectedColor,
-        selectedSize: item.selectedSize
-      }))
-    };
-    
-    setOrders(prev => [newOrder, ...prev]);
-    
-    // Update customer data
-    setCustomers(prev => {
-      const existing = prev.find(c => c.email === customerData.email);
-      if (existing) {
-        return prev.map(c => c.email === customerData.email ? {
-          ...c,
-          totalOrders: c.totalOrders + 1,
-          totalSpent: c.totalSpent + totals.total,
-          lastOrderDate: new Date().toISOString()
-        } : c);
-      }
-      return [...prev, {
-        id: Math.random().toString(36).substr(2, 9),
-        name: customerData.name,
-        email: customerData.email,
-        phone: customerData.phone,
-        governorate: customerData.governorate,
-        totalOrders: 1,
-        totalSpent: totals.total,
-        lastOrderDate: new Date().toISOString(),
-        registrationDate: new Date().toISOString()
-      }];
-    });
-
-    // Reduce stock
-    setProducts(prev => prev.map(p => {
-      const cartItem = cart.find(item => item.id === p.id);
-      if (cartItem) {
-        return { ...p, stockQuantity: Math.max(0, p.stockQuantity - cartItem.quantity) };
-      }
-      return p;
+  const placeOrder = async (customerData: any, totals: any) => {
+    const orderNumber = `RF-${Date.now().toString().slice(-6)}`;
+    const items = cart.map(item => ({
+      product_id: item.id,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+      selectedColor: item.selectedColor,
+      selectedSize: item.selectedSize
     }));
 
-    setCart([]);
-    setCurrentPage('confirmation');
-    showToast('Order placed successfully!');
+    const orderToSave = {
+      order_number: orderNumber,
+      customer_name: customerData.name,
+      email: customerData.email,
+      phone: customerData.phone,
+      governorate: customerData.governorate,
+      address: customerData.address,
+      subtotal: totals.subtotal,
+      shipping: totals.shipping,
+      total: totals.total,
+      payment_method: customerData.paymentMethod,
+      payment_screenshot: customerData.paymentScreenshot,
+      notes: customerData.notes,
+      status: 'Pending' as const
+    };
+
+    try {
+      await db.createOrder(orderToSave as any, items as any);
+      
+      const newOrder: Order = {
+        id: Math.random().toString(36).substr(2, 9),
+        orderNumber,
+        date: new Date().toISOString(),
+        status: 'Pending',
+        ...customerData,
+        ...totals,
+        items: cart.map(item => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          selectedColor: item.selectedColor,
+          selectedSize: item.selectedSize
+        }))
+      };
+      
+      setOrders(prev => [newOrder, ...prev]);
+      
+      // Update customer data
+      setCustomers(prev => {
+        const existing = prev.find(c => c.email === customerData.email);
+        if (existing) {
+          return prev.map(c => c.email === customerData.email ? {
+            ...c,
+            totalOrders: c.totalOrders + 1,
+            totalSpent: c.totalSpent + totals.total,
+            lastOrderDate: new Date().toISOString()
+          } : c);
+        }
+        return [...prev, {
+          id: Math.random().toString(36).substr(2, 9),
+          name: customerData.name,
+          email: customerData.email,
+          phone: customerData.phone,
+          governorate: customerData.governorate,
+          totalOrders: 1,
+          totalSpent: totals.total,
+          lastOrderDate: new Date().toISOString(),
+          registrationDate: new Date().toISOString()
+        }];
+      });
+
+      // Reduce stock
+      setProducts(prev => prev.map(p => {
+        const cartItem = cart.find(item => item.id === p.id);
+        if (cartItem) {
+          const updatedProduct = { ...p, stockQuantity: Math.max(0, p.stockQuantity - cartItem.quantity) };
+          // Optionally sync stock back to Supabase
+          db.updateProduct(updatedProduct).catch(console.error);
+          return updatedProduct;
+        }
+        return p;
+      }));
+
+      setCart([]);
+      setCurrentPage('confirmation');
+      showToast('Order placed successfully!');
+    } catch (error) {
+      console.error('Error placing order in Supabase:', error);
+      showToast('Failed to place order. Please try again.', 'error');
+    }
   };
 
   const handleAdminLogin = (success: boolean) => {
@@ -299,10 +418,23 @@ export default function App() {
         return <About setCurrentPage={setCurrentPage} settings={settings} />;
       case 'contact':
         return <Contact setCurrentPage={setCurrentPage} settings={settings} />;
+      case 'shipping-returns':
+        return <ShippingReturns setCurrentPage={setCurrentPage} settings={settings} />;
       default:
         return <Home setCurrentPage={setCurrentPage} setSelectedProduct={setSelectedProduct} onAddToCart={addToCart} products={products.filter(p => p.status === 'Active')} settings={settings} reviews={reviews} />;
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-offwhite flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 border-4 border-gold border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-plum/40 text-xs tracking-widest uppercase font-bold">Loading RIFFA Experience...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen flex flex-col ${isArabic ? 'rtl' : ''}`}>

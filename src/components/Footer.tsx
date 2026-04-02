@@ -59,7 +59,7 @@ export const Footer: React.FC<FooterProps> = ({ setCurrentPage, settings }) => {
             <ul className="space-y-4 text-sm text-offwhite/60">
               <li><button onClick={() => setCurrentPage('about')} className="hover:text-gold transition-colors">Our Story</button></li>
               <li><button onClick={() => setCurrentPage('contact')} className="hover:text-gold transition-colors">Contact Us</button></li>
-              <li><a href="#" className="hover:text-gold transition-colors">Shipping & Returns</a></li>
+              <li><button onClick={() => setCurrentPage('shipping-returns')} className="hover:text-gold transition-colors">Shipping & Returns</button></li>
               <li><button onClick={() => setCurrentPage('admin')} className="hover:text-gold transition-colors">Staff Portal</button></li>
             </ul>
           </div>
@@ -87,10 +87,8 @@ export const Footer: React.FC<FooterProps> = ({ setCurrentPage, settings }) => {
         {/* Payment Methods & Copyright */}
         <div className="pt-10 border-t border-offwhite/5 flex flex-col md:flex-row justify-between items-center space-y-6 md:space-y-0">
           <div className="flex items-center space-x-6 opacity-40 grayscale hover:grayscale-0 transition-all">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Visa" className="h-4" />
-            <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" className="h-6" />
-            <img src="https://upload.wikimedia.org/wikipedia/commons/a/a4/Vodafone_logo.svg" alt="Vodafone Cash" className="h-6" />
-            <span className="text-[10px] tracking-widest uppercase font-bold">COD</span>
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/InstaPay_Logo.svg/1200px-InstaPay_Logo.svg.png" alt="Instapay" className="h-4" />
+            <span className="text-[10px] tracking-widest uppercase font-bold">CASH ON DELIVERY</span>
           </div>
           <div className="flex items-center gap-4">
             <div className="text-[10px] tracking-[0.2em] uppercase text-offwhite/30 text-center md:text-right">

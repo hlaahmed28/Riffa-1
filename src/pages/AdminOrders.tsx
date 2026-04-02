@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AdminSidebar } from '../components/AdminSidebar';
 import { Search, Filter, Download, Eye, X, Printer, Package, Truck, CheckCircle, AlertCircle, Clock, Plus, Trash2 } from 'lucide-react';
 import { Order, Product, Customer, PromoCode, AppSettings, GOVERNORATES, OrderItem } from '../types';
+import { db } from '../lib/db';
 
 interface AdminOrdersProps {
   orders: Order[];
@@ -43,14 +44,24 @@ export function AdminOrders({ orders, setOrders, products, setProducts, customer
     return matchesSearch && matchesStatus;
   });
 
-  const updateOrderStatus = (id: string, newStatus: Order['status']) => {
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus } : o));
-    if (selectedOrder?.id === id) {
-      setSelectedOrder(prev => prev ? { ...prev, status: newStatus } : null);
+  const updateOrderStatus = async (id: string, newStatus: Order['status']) => {
+    try {
+      const { supabase } = await import('../lib/supabase');
+      const { error } = await supabase.from('orders').update({ status: newStatus }).eq('id', id);
+      if (error) throw error;
+
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus } : o));
+      if (selectedOrder?.id === id) {
+        setSelectedOrder(prev => prev ? { ...prev, status: newStatus } : null);
+      }
+      showToast(`Order status updated to ${newStatus}`);
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      showToast('Failed to update order status.', 'error');
     }
   };
 
-  const handleAddManualOrder = () => {
+  const handleAddManualOrder = async () => {
     if (!manualOrder.customerName || !manualOrder.phone || manualOrder.items.length === 0) {
       showToast('Please fill in customer details and add at least one item.', 'error');
       return;
@@ -58,73 +69,107 @@ export function AdminOrders({ orders, setOrders, products, setProducts, customer
 
     const subtotal = manualOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const total = subtotal + manualOrder.shipping;
+    const orderNumber = `RF-M-${Date.now().toString().slice(-6)}`;
 
-    const newOrder: Order = {
-      id: Math.random().toString(36).substr(2, 9),
-      orderNumber: `RF-M-${Date.now().toString().slice(-6)}`,
-      date: new Date().toISOString(),
-      status: 'Pending',
-      customerName: manualOrder.customerName,
+    const orderToSave = {
+      order_number: orderNumber,
+      customer_name: manualOrder.customerName,
       email: manualOrder.email,
       phone: manualOrder.phone,
       governorate: manualOrder.governorate,
       address: manualOrder.address,
-      items: manualOrder.items,
       subtotal,
       shipping: manualOrder.shipping,
       total,
-      paymentMethod: manualOrder.paymentMethod,
-      notes: manualOrder.notes
+      payment_method: manualOrder.paymentMethod,
+      notes: manualOrder.notes,
+      status: 'Pending' as const
     };
 
-    setOrders(prev => [newOrder, ...prev]);
-    
-    // Update customer data
-    setCustomers(prev => {
-      const existing = prev.find(c => c.email === manualOrder.email || (manualOrder.phone && c.phone === manualOrder.phone));
-      if (existing) {
-        return prev.map(c => c.id === existing.id ? {
-          ...c,
-          totalOrders: c.totalOrders + 1,
-          totalSpent: c.totalSpent + total,
-          lastOrderDate: new Date().toISOString()
-        } : c);
-      }
-      return [...prev, {
-        id: Math.random().toString(36).substr(2, 9),
-        name: manualOrder.customerName,
+    const itemsToSave = manualOrder.items.map(item => ({
+      product_id: item.id,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+      selected_color: item.selectedColor,
+      selected_size: item.selectedSize
+    }));
+
+    try {
+      const savedOrder = await db.createOrder(orderToSave as any, itemsToSave as any);
+
+      const newOrder: Order = {
+        id: savedOrder.id,
+        orderNumber,
+        date: new Date().toISOString(),
+        status: 'Pending',
+        customerName: manualOrder.customerName,
         email: manualOrder.email,
         phone: manualOrder.phone,
         governorate: manualOrder.governorate,
-        totalOrders: 1,
-        totalSpent: total,
-        lastOrderDate: new Date().toISOString(),
-        registrationDate: new Date().toISOString()
-      }];
-    });
+        address: manualOrder.address,
+        items: manualOrder.items,
+        subtotal,
+        shipping: manualOrder.shipping,
+        total,
+        paymentMethod: manualOrder.paymentMethod,
+        notes: manualOrder.notes
+      };
 
-    // Reduce stock
-    setProducts(prev => prev.map(p => {
-      const orderItem = manualOrder.items.find(item => item.id === p.id);
-      if (orderItem) {
-        return { ...p, stockQuantity: Math.max(0, p.stockQuantity - orderItem.quantity) };
-      }
-      return p;
-    }));
+      setOrders(prev => [newOrder, ...prev]);
+      
+      // Update customer data
+      setCustomers(prev => {
+        const existing = prev.find(c => c.email === manualOrder.email || (manualOrder.phone && c.phone === manualOrder.phone));
+        if (existing) {
+          return prev.map(c => c.id === existing.id ? {
+            ...c,
+            totalOrders: c.totalOrders + 1,
+            totalSpent: c.totalSpent + total,
+            lastOrderDate: new Date().toISOString()
+          } : c);
+        }
+        return [...prev, {
+          id: Math.random().toString(36).substr(2, 9),
+          name: manualOrder.customerName,
+          email: manualOrder.email,
+          phone: manualOrder.phone,
+          governorate: manualOrder.governorate,
+          totalOrders: 1,
+          totalSpent: total,
+          lastOrderDate: new Date().toISOString(),
+          registrationDate: new Date().toISOString()
+        }];
+      });
 
-    setIsManualOrderModalOpen(false);
-    showToast('Manual order created successfully!');
-    setManualOrder({
-      customerName: '',
-      email: '',
-      phone: '',
-      governorate: GOVERNORATES[0],
-      address: '',
-      items: [],
-      notes: '',
-      shipping: settings.shippingFeeStandard,
-      paymentMethod: 'InstaPay'
-    });
+      // Reduce stock
+      setProducts(prev => prev.map(p => {
+        const orderItem = manualOrder.items.find(item => item.id === p.id);
+        if (orderItem) {
+          const updatedProduct = { ...p, stockQuantity: Math.max(0, p.stockQuantity - orderItem.quantity) };
+          db.updateProduct(updatedProduct).catch(console.error);
+          return updatedProduct;
+        }
+        return p;
+      }));
+
+      setIsManualOrderModalOpen(false);
+      showToast('Manual order created successfully!');
+      setManualOrder({
+        customerName: '',
+        email: '',
+        phone: '',
+        governorate: GOVERNORATES[0],
+        address: '',
+        items: [],
+        notes: '',
+        shipping: settings.shippingFeeStandard,
+        paymentMethod: 'InstaPay'
+      });
+    } catch (error) {
+      console.error('Error creating manual order:', error);
+      showToast('Failed to create manual order.', 'error');
+    }
   };
 
   const addItemToManualOrder = (productId: string) => {

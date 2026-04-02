@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AdminSidebar } from '../components/AdminSidebar';
 import { Save, Globe, Truck, Share2, Megaphone, FileText, Check } from 'lucide-react';
 import { AppSettings, Product, Order, Customer, PromoCode } from '../types';
+import { db } from '../lib/db';
 
 interface AdminSettingsProps {
   settings: AppSettings;
@@ -15,10 +16,16 @@ interface AdminSettingsProps {
 export function AdminSettings({ settings, setSettings, onLogout, activeSection, setActiveSection, showToast }: AdminSettingsProps) {
   const [formData, setFormData] = useState<AppSettings>(settings);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSettings(formData);
-    showToast('Settings saved successfully!');
+    try {
+      await db.updateSettings(formData);
+      setSettings(formData);
+      showToast('Settings saved successfully!');
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      showToast('Failed to save settings.', 'error');
+    }
   };
 
   return (
