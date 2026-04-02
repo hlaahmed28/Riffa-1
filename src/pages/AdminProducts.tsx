@@ -319,7 +319,7 @@ export function AdminProducts({ products, setProducts, settings, onLogout, activ
                       <input 
                         type="text" 
                         required
-                        value={formData.name}
+                        value={formData.name || ''}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         className="w-full px-3 py-2 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e] text-sm"
                         placeholder="e.g. Royal Indigo Shawl"
@@ -332,7 +332,7 @@ export function AdminProducts({ products, setProducts, settings, onLogout, activ
                         <input 
                           type="number" 
                           required
-                          value={formData.price}
+                          value={formData.price || 0}
                           onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
                           className="w-full px-3 py-2 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e] text-sm"
                         />
@@ -341,7 +341,7 @@ export function AdminProducts({ products, setProducts, settings, onLogout, activ
                         <label className="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Compare At Price</label>
                         <input 
                           type="number" 
-                          value={formData.compareAtPrice}
+                          value={formData.compareAtPrice || 0}
                           onChange={(e) => setFormData({ ...formData, compareAtPrice: Number(e.target.value) })}
                           className="w-full px-3 py-2 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e] text-sm"
                         />
@@ -354,7 +354,7 @@ export function AdminProducts({ products, setProducts, settings, onLogout, activ
                         <input 
                           type="number" 
                           required
-                          value={formData.stockQuantity}
+                          value={formData.stockQuantity || 0}
                           onChange={(e) => setFormData({ ...formData, stockQuantity: Number(e.target.value) })}
                           className="w-full px-3 py-2 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e] text-sm"
                         />
@@ -486,7 +486,7 @@ export function AdminProducts({ products, setProducts, settings, onLogout, activ
                             <input 
                               type="text" 
                               required
-                              value={formData.image}
+                              value={formData.image || ''}
                               onChange={(e) => setFormData({ ...formData, image: e.target.value })}
                               className="w-full pl-8 pr-3 py-2 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e] text-xs"
                               placeholder="Paste image URL..."
@@ -528,7 +528,7 @@ export function AdminProducts({ products, setProducts, settings, onLogout, activ
                       <label className="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Description</label>
                       <textarea 
                         required
-                        value={formData.description}
+                        value={formData.description || ''}
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                         className="w-full px-3 py-2 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e] text-sm min-h-[80px]"
                         placeholder="Describe the product..."
@@ -540,7 +540,7 @@ export function AdminProducts({ products, setProducts, settings, onLogout, activ
                         <label className="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Material</label>
                         <input 
                           type="text" 
-                          value={formData.material}
+                          value={formData.material || ''}
                           onChange={(e) => setFormData({ ...formData, material: e.target.value })}
                           className="w-full px-3 py-2 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e] text-sm"
                           placeholder="e.g. 100% Silk"
@@ -550,7 +550,7 @@ export function AdminProducts({ products, setProducts, settings, onLogout, activ
                         <label className="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Origin</label>
                         <input 
                           type="text" 
-                          value={formData.origin}
+                          value={formData.origin || ''}
                           onChange={(e) => setFormData({ ...formData, origin: e.target.value })}
                           className="w-full px-3 py-2 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e] text-sm"
                           placeholder="e.g. Cairo"

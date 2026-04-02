@@ -87,7 +87,7 @@ export function AdminSettings({ settings, setSettings, onLogout, activeSection, 
               <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Store Name</label>
               <input 
                 type="text" 
-                value={formData.storeName}
+                value={formData.storeName || ''}
                 onChange={(e) => setFormData({ ...formData, storeName: e.target.value })}
                 className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e]"
               />
@@ -97,7 +97,7 @@ export function AdminSettings({ settings, setSettings, onLogout, activeSection, 
               <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Store Logo URL</label>
               <input 
                 type="text" 
-                value={formData.logo}
+                value={formData.logo || ''}
                 onChange={(e) => setFormData({ ...formData, logo: e.target.value })}
                 className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e]"
                 placeholder="https://example.com/logo.png"
@@ -111,7 +111,7 @@ export function AdminSettings({ settings, setSettings, onLogout, activeSection, 
               <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">WhatsApp Number</label>
               <input 
                 type="text" 
-                value={formData.whatsappNumber}
+                value={formData.whatsappNumber || ''}
                 onChange={(e) => setFormData({ ...formData, whatsappNumber: e.target.value })}
                 className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e]"
               />
@@ -120,7 +120,7 @@ export function AdminSettings({ settings, setSettings, onLogout, activeSection, 
             <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Store Address</label>
               <textarea 
-                value={formData.address}
+                value={formData.address || ''}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e] min-h-[80px]"
               />
@@ -139,7 +139,7 @@ export function AdminSettings({ settings, setSettings, onLogout, activeSection, 
                 <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Default Standard Shipping (EGP)</label>
                 <input 
                   type="number" 
-                  value={formData.shippingFeeStandard}
+                  value={formData.shippingFeeStandard || 0}
                   onChange={(e) => setFormData({ ...formData, shippingFeeStandard: Number(e.target.value) })}
                   className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e]"
                 />
@@ -173,7 +173,7 @@ export function AdminSettings({ settings, setSettings, onLogout, activeSection, 
               <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Free Shipping Threshold (EGP)</label>
               <input 
                 type="number" 
-                value={formData.freeShippingThreshold}
+                value={formData.freeShippingThreshold || 0}
                 onChange={(e) => setFormData({ ...formData, freeShippingThreshold: Number(e.target.value) })}
                 className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e]"
               />
@@ -191,7 +191,7 @@ export function AdminSettings({ settings, setSettings, onLogout, activeSection, 
               <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Instagram URL</label>
               <input 
                 type="text" 
-                value={formData.instagramUrl}
+                value={formData.instagramUrl || ''}
                 onChange={(e) => setFormData({ ...formData, instagramUrl: e.target.value })}
                 className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e]"
               />
@@ -201,7 +201,7 @@ export function AdminSettings({ settings, setSettings, onLogout, activeSection, 
               <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Facebook URL</label>
               <input 
                 type="text" 
-                value={formData.facebookUrl}
+                value={formData.facebookUrl || ''}
                 onChange={(e) => setFormData({ ...formData, facebookUrl: e.target.value })}
                 className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e]"
               />
@@ -211,7 +211,7 @@ export function AdminSettings({ settings, setSettings, onLogout, activeSection, 
               <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">TikTok URL</label>
               <input 
                 type="text" 
-                value={formData.tiktokUrl}
+                value={formData.tiktokUrl || ''}
                 onChange={(e) => setFormData({ ...formData, tiktokUrl: e.target.value })}
                 className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e]"
               />
@@ -229,7 +229,7 @@ export function AdminSettings({ settings, setSettings, onLogout, activeSection, 
               <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Announcement Bar Text</label>
               <input 
                 type="text" 
-                value={formData.announcementBar}
+                value={formData.announcementBar || ''}
                 onChange={(e) => setFormData({ ...formData, announcementBar: e.target.value })}
                 className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e]"
               />
@@ -241,7 +241,7 @@ export function AdminSettings({ settings, setSettings, onLogout, activeSection, 
                 <label className="block text-xs font-semibold text-gray-500 uppercase">About Page Text</label>
               </div>
               <textarea 
-                value={formData.aboutText}
+                value={formData.aboutText || ''}
                 onChange={(e) => setFormData({ ...formData, aboutText: e.target.value })}
                 className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e] min-h-[150px]"
               />

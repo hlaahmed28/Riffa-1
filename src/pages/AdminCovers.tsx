@@ -81,7 +81,7 @@ export function AdminCovers({ settings, setSettings, onLogout, activeSection, se
                     <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input 
                       type="text" 
-                      value={formData.heroImage}
+                      value={formData.heroImage || ''}
                       onChange={(e) => setFormData({ ...formData, heroImage: e.target.value })}
                       className="w-full pl-10 pr-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e] text-sm"
                     />
@@ -143,7 +143,7 @@ export function AdminCovers({ settings, setSettings, onLogout, activeSection, se
                     <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
                     <input 
                       type="text" 
-                      value={formData.categoryCovers[cat]}
+                      value={formData.categoryCovers[cat] || ''}
                       onChange={(e) => setFormData({
                         ...formData,
                         categoryCovers: { ...formData.categoryCovers, [cat]: e.target.value }

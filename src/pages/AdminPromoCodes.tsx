@@ -235,7 +235,7 @@ export function AdminPromoCodes({ promoCodes, setPromoCodes, settings, onLogout,
                   <input 
                     type="text" 
                     required
-                    value={formData.code}
+                    value={formData.code || ''}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
                     className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e] font-bold tracking-widest"
                     placeholder="e.g. RIFFA20"
@@ -261,7 +261,7 @@ export function AdminPromoCodes({ promoCodes, setPromoCodes, settings, onLogout,
                       <input 
                         type="number" 
                         required
-                        value={formData.value}
+                        value={formData.value || 0}
                         onChange={(e) => setFormData({ ...formData, value: Number(e.target.value) })}
                         className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e]"
                       />
@@ -275,7 +275,7 @@ export function AdminPromoCodes({ promoCodes, setPromoCodes, settings, onLogout,
                     <input 
                       type="number" 
                       required
-                      value={formData.minOrder}
+                      value={formData.minOrder || 0}
                       onChange={(e) => setFormData({ ...formData, minOrder: Number(e.target.value) })}
                       className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e]"
                     />
@@ -285,7 +285,7 @@ export function AdminPromoCodes({ promoCodes, setPromoCodes, settings, onLogout,
                     <input 
                       type="number" 
                       required
-                      value={formData.usageLimit}
+                      value={formData.usageLimit || 0}
                       onChange={(e) => setFormData({ ...formData, usageLimit: Number(e.target.value) })}
                       className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e]"
                       placeholder="0 for unlimited"
@@ -298,7 +298,7 @@ export function AdminPromoCodes({ promoCodes, setPromoCodes, settings, onLogout,
                   <input 
                     type="date" 
                     required
-                    value={formData.expiryDate}
+                    value={formData.expiryDate || ''}
                     onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
                     className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e]"
                   />
