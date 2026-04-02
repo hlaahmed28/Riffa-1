@@ -1,5 +1,5 @@
 import { getSupabase } from './supabase';
-import { Product, Order, OrderItem, PromoCode, Review, AppSettings } from '../types';
+import { Product, Order, OrderItem, PromoCode, Review, AppSettings, Customer } from '../types';
 
 export const db = {
   // --- Products ---
@@ -26,6 +26,18 @@ export const db = {
     
     if (error) throw error;
     return data as Product;
+  },
+
+  async deleteProduct(id: string) {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return true;
   },
 
   // --- Orders ---
@@ -107,6 +119,107 @@ export const db = {
     
     if (error) throw error;
     return data as Review[];
+  },
+
+  async updateReview(review: Review) {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+    const { data, error } = await supabase
+      .from('reviews')
+      .upsert(review)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data as Review;
+  },
+
+  async deleteReview(id: string) {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+    const { error } = await supabase
+      .from('reviews')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return true;
+  },
+
+  // --- Promo Codes ---
+  async getPromoCodes() {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+    const { data, error } = await supabase
+      .from('promo_codes')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data as PromoCode[];
+  },
+
+  async updatePromoCode(promoCode: PromoCode) {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+    const { data, error } = await supabase
+      .from('promo_codes')
+      .upsert(promoCode)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data as PromoCode;
+  },
+
+  async deletePromoCode(id: string) {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+    const { error } = await supabase
+      .from('promo_codes')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return true;
+  },
+
+  // --- Customers ---
+  async getCustomers() {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+    const { data, error } = await supabase
+      .from('customers')
+      .select('*')
+      .order('total_spent', { ascending: false });
+    
+    if (error) throw error;
+    return data as Customer[];
+  },
+
+  async updateCustomer(customer: Customer) {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+    const { data, error } = await supabase
+      .from('customers')
+      .upsert(customer)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data as Customer;
+  },
+
+  async updateOrderStatus(id: string, status: Order['status']) {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+    const { error } = await supabase
+      .from('orders')
+      .update({ status })
+      .eq('id', id);
+    
+    if (error) throw error;
+    return true;
   },
 
   // --- Connection Test ---

@@ -130,9 +130,7 @@ export function AdminProducts({ products, setProducts, settings, onLogout, activ
   const confirmDelete = async () => {
     if (deleteConfirmId) {
       try {
-        const { supabase } = await import('../lib/supabase');
-        const { error } = await supabase.from('products').delete().eq('id', deleteConfirmId);
-        if (error) throw error;
+        await db.deleteProduct(deleteConfirmId);
         
         setProducts(prev => prev.filter(p => p.id !== deleteConfirmId));
         setDeleteConfirmId(null);

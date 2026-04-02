@@ -94,16 +94,18 @@ export default function App() {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const [supabaseProducts, supabaseSettings, supabaseReviews, supabaseOrders] = await Promise.all([
+        const [supabaseProducts, supabaseSettings, supabaseReviews, supabaseOrders, supabasePromoCodes] = await Promise.all([
           db.getProducts(),
           db.getSettings(),
           db.getReviews(),
-          db.getOrders()
+          db.getOrders(),
+          db.getPromoCodes()
         ]);
 
         if (supabaseProducts) setProducts(supabaseProducts);
         if (supabaseSettings) setSettings(supabaseSettings);
         if (supabaseReviews) setReviews(supabaseReviews);
+        if (supabasePromoCodes) setPromoCodes(supabasePromoCodes);
         
         if (supabaseOrders) {
           // Process orders to match the Order type (flatten order_items)

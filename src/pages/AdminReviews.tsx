@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AdminSidebar } from '../components/AdminSidebar';
 import { Plus, Search, Star, Edit2, Trash2, X, Check, User, MessageSquare } from 'lucide-react';
 import { Review, AppSettings } from '../types';
+import { db } from '../lib/db';
 
 interface AdminReviewsProps {
   reviews: Review[];
@@ -49,31 +50,45 @@ export function AdminReviews({ reviews, setReviews, settings, onLogout, activeSe
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingReview) {
-      setReviews(prev => prev.map(r => r.id === editingReview.id ? { ...r, ...formData } as Review : r));
-      showToast('Review updated successfully!');
-    } else {
-      const newReview: Review = {
-        ...formData,
-        id: Math.random().toString(36).substr(2, 9),
-      } as Review;
-      setReviews(prev => [newReview, ...prev]);
-      showToast('Review added successfully!');
+    try {
+      if (editingReview) {
+        const updatedReview = { ...editingReview, ...formData } as Review;
+        await db.updateReview(updatedReview);
+        setReviews(prev => prev.map(r => r.id === editingReview.id ? updatedReview : r));
+        showToast('Review updated successfully!');
+      } else {
+        const newReview: Review = {
+          ...formData,
+          id: Math.random().toString(36).substr(2, 9),
+        } as Review;
+        await db.updateReview(newReview);
+        setReviews(prev => [newReview, ...prev]);
+        showToast('Review added successfully!');
+      }
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error('Error saving review:', error);
+      showToast('Failed to save review.', 'error');
     }
-    setIsModalOpen(false);
   };
 
   const handleDelete = (id: string) => {
     setDeleteConfirmId(id);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deleteConfirmId) {
-      setReviews(prev => prev.filter(r => r.id !== deleteConfirmId));
-      setDeleteConfirmId(null);
-      showToast('Review deleted successfully!');
+      try {
+        await db.deleteReview(deleteConfirmId);
+        setReviews(prev => prev.filter(r => r.id !== deleteConfirmId));
+        setDeleteConfirmId(null);
+        showToast('Review deleted successfully!');
+      } catch (error) {
+        console.error('Error deleting review:', error);
+        showToast('Failed to delete review.', 'error');
+      }
     }
   };
 

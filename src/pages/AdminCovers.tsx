@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AdminSidebar } from '../components/AdminSidebar';
 import { Save, Image as ImageIcon, Upload, Check, Layout, Monitor, Smartphone } from 'lucide-react';
 import { AppSettings } from '../types';
+import { db } from '../lib/db';
 
 interface AdminCoversProps {
   settings: AppSettings;
@@ -36,10 +37,16 @@ export function AdminCovers({ settings, setSettings, onLogout, activeSection, se
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSettings(formData);
-    showToast('Cover images saved successfully!');
+    try {
+      await db.updateSettings(formData);
+      setSettings(formData);
+      showToast('Cover images saved successfully!');
+    } catch (error) {
+      console.error('Error saving covers:', error);
+      showToast('Failed to save covers.', 'error');
+    }
   };
 
   return (

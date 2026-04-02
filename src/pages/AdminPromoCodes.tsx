@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AdminSidebar } from '../components/AdminSidebar';
 import { Plus, Search, Edit2, Trash2, X, Check, Ticket, Calendar, DollarSign, Percent } from 'lucide-react';
 import { PromoCode, Product, Order, Customer, AppSettings } from '../types';
+import { db } from '../lib/db';
 
 interface AdminPromoCodesProps {
   promoCodes: PromoCode[];
@@ -53,38 +54,62 @@ export function AdminPromoCodes({ promoCodes, setPromoCodes, settings, onLogout,
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingCode) {
-      setPromoCodes(prev => prev.map(c => c.id === editingCode.id ? { ...c, ...formData } as PromoCode : c));
-      showToast('Promo code updated successfully!');
-    } else {
-      const newCode: PromoCode = {
-        ...formData,
-        id: Math.random().toString(36).substr(2, 9),
-        usageCount: 0
-      } as PromoCode;
-      setPromoCodes(prev => [newCode, ...prev]);
-      showToast('Promo code created successfully!');
+    try {
+      if (editingCode) {
+        const updatedCode = { ...editingCode, ...formData } as PromoCode;
+        await db.updatePromoCode(updatedCode);
+        setPromoCodes(prev => prev.map(c => c.id === editingCode.id ? updatedCode : c));
+        showToast('Promo code updated successfully!');
+      } else {
+        const newCode: PromoCode = {
+          ...formData,
+          id: Math.random().toString(36).substr(2, 9),
+          usageCount: 0
+        } as PromoCode;
+        await db.updatePromoCode(newCode);
+        setPromoCodes(prev => [newCode, ...prev]);
+        showToast('Promo code created successfully!');
+      }
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error('Error saving promo code:', error);
+      showToast('Failed to save promo code.', 'error');
     }
-    setIsModalOpen(false);
   };
 
   const handleDelete = (id: string) => {
     setDeleteConfirmId(id);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deleteConfirmId) {
-      setPromoCodes(prev => prev.filter(c => c.id !== deleteConfirmId));
-      setDeleteConfirmId(null);
-      showToast('Promo code deleted successfully!');
+      try {
+        await db.deletePromoCode(deleteConfirmId);
+        setPromoCodes(prev => prev.filter(c => c.id !== deleteConfirmId));
+        setDeleteConfirmId(null);
+        showToast('Promo code deleted successfully!');
+      } catch (error) {
+        console.error('Error deleting promo code:', error);
+        showToast('Failed to delete promo code.', 'error');
+      }
     }
   };
 
-  const toggleStatus = (id: string) => {
-    setPromoCodes(prev => prev.map(c => c.id === id ? { ...c, isActive: !c.isActive } : c));
-    showToast('Promo code status updated!');
+  const toggleStatus = async (id: string) => {
+    const code = promoCodes.find(c => c.id === id);
+    if (!code) return;
+    
+    try {
+      const updatedCode = { ...code, isActive: !code.isActive };
+      await db.updatePromoCode(updatedCode);
+      setPromoCodes(prev => prev.map(c => c.id === id ? updatedCode : c));
+      showToast('Promo code status updated!');
+    } catch (error) {
+      console.error('Error updating status:', error);
+      showToast('Failed to update status.', 'error');
+    }
   };
 
   return (

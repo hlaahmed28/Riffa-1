@@ -46,10 +46,7 @@ export function AdminOrders({ orders, setOrders, products, setProducts, customer
 
   const updateOrderStatus = async (id: string, newStatus: Order['status']) => {
     try {
-      const { supabase } = await import('../lib/supabase');
-      const { error } = await supabase.from('orders').update({ status: newStatus }).eq('id', id);
-      if (error) throw error;
-
+      await db.updateOrderStatus(id, newStatus);
       setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus } : o));
       if (selectedOrder?.id === id) {
         setSelectedOrder(prev => prev ? { ...prev, status: newStatus } : null);
