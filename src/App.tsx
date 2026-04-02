@@ -282,6 +282,21 @@ export default function App() {
     try {
       await db.createOrder(orderToSave as any, items as any);
       
+      // Send confirmation email via our server API
+      try {
+        await fetch('/api/send-confirmation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            order: { ...orderToSave, subtotal: totals.subtotal, shipping: totals.shipping, total: totals.total },
+            items: items
+          })
+        });
+      } catch (emailError) {
+        console.error('Failed to send confirmation email:', emailError);
+        // We don't want to fail the whole order if the email fails
+      }
+
       const newOrder: Order = {
         id: Math.random().toString(36).substr(2, 9),
         orderNumber,
