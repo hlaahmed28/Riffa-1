@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AdminSidebar } from '../components/AdminSidebar';
-import { Save, Globe, Truck, Share2, Megaphone, FileText, Check } from 'lucide-react';
+import { Save, Globe, Truck, Share2, Megaphone, FileText, Check, Database, RefreshCw, AlertCircle } from 'lucide-react';
 import { AppSettings, Product, Order, Customer, PromoCode } from '../types';
 import { db } from '../lib/db';
 
@@ -15,6 +15,34 @@ interface AdminSettingsProps {
 
 export function AdminSettings({ settings, setSettings, onLogout, activeSection, setActiveSection, showToast }: AdminSettingsProps) {
   const [formData, setFormData] = useState<AppSettings>(settings);
+  const [connectionStatus, setConnectionStatus] = useState<{ loading: boolean; success: boolean | null; message: string }>({
+    loading: false,
+    success: null,
+    message: ''
+  });
+
+  const testConnection = async () => {
+    setConnectionStatus({ loading: true, success: null, message: 'Testing connection...' });
+    try {
+      const result = await db.testConnection();
+      setConnectionStatus({ 
+        loading: false, 
+        success: result.success, 
+        message: result.message 
+      });
+    } catch (error: any) {
+      setConnectionStatus({ 
+        loading: false, 
+        success: false, 
+        message: `Error: ${error.message || 'Unknown error'}` 
+      });
+    }
+  };
+
+  // Initial connection test
+  useEffect(() => {
+    testConnection();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -217,6 +245,53 @@ export function AdminSettings({ settings, setSettings, onLogout, activeSection, 
                 onChange={(e) => setFormData({ ...formData, aboutText: e.target.value })}
                 className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e] min-h-[150px]"
               />
+            </div>
+          </div>
+
+          {/* Database Connection Status */}
+          <div className="bg-white p-8 rounded-3xl shadow-sm border border-[#e8ddd0] space-y-6 lg:col-span-2">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <Database className="w-5 h-5 text-[#c9a96e]" />
+                <h2 className="text-lg font-bold text-[#2d2535]">Database Connection</h2>
+              </div>
+              <button 
+                type="button"
+                onClick={testConnection}
+                disabled={connectionStatus.loading}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-[#2d2535] bg-[#faf8f5] border border-[#e8ddd0] rounded-xl hover:bg-[#e8ddd0] transition-all disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${connectionStatus.loading ? 'animate-spin' : ''}`} />
+                Test Connection
+              </button>
+            </div>
+
+            <div className={`p-4 rounded-2xl border flex items-start gap-4 ${
+              connectionStatus.success === true ? 'bg-green-50 border-green-100 text-green-800' : 
+              connectionStatus.success === false ? 'bg-red-50 border-red-100 text-red-800' : 
+              'bg-blue-50 border-blue-100 text-blue-800'
+            }`}>
+              {connectionStatus.success === true ? (
+                <Check className="w-6 h-6 flex-shrink-0 mt-0.5" />
+              ) : connectionStatus.success === false ? (
+                <AlertCircle className="w-6 h-6 flex-shrink-0 mt-0.5" />
+              ) : (
+                <RefreshCw className="w-6 h-6 flex-shrink-0 mt-0.5 animate-spin" />
+              )}
+              
+              <div>
+                <p className="font-bold text-sm">
+                  {connectionStatus.success === true ? 'Connected' : 
+                   connectionStatus.success === false ? 'Connection Failed' : 
+                   'Checking Connection...'}
+                </p>
+                <p className="text-xs mt-1 opacity-80">{connectionStatus.message}</p>
+                {connectionStatus.success === false && (
+                  <p className="text-[10px] mt-2 font-medium">
+                    Tip: Ensure your VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are correctly set in the Settings menu.
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </form>

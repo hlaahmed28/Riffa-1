@@ -1,5 +1,6 @@
-import React from 'react';
-import { LayoutDashboard, ShoppingBag, ShoppingCart, Users, Ticket, Settings, LogOut, ChevronRight, MessageSquare, Image as ImageIcon, BarChart3 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { LayoutDashboard, ShoppingBag, ShoppingCart, Users, Ticket, Settings, LogOut, ChevronRight, MessageSquare, Image as ImageIcon, BarChart3, Database, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
+import { db } from '../lib/db';
 
 interface AdminSidebarProps {
   activeSection: string;
@@ -10,6 +11,20 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ activeSection, setActiveSection, onLogout, logo }: AdminSidebarProps) {
   const [logoError, setLogoError] = React.useState(false);
+  const [dbStatus, setDbStatus] = useState<'loading' | 'connected' | 'failed'>('loading');
+
+  useEffect(() => {
+    const checkConnection = async () => {
+      try {
+        const result = await db.testConnection();
+        setDbStatus(result.success ? 'connected' : 'failed');
+      } catch (error) {
+        setDbStatus('failed');
+      }
+    };
+    checkConnection();
+  }, []);
+
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
@@ -59,7 +74,21 @@ export function AdminSidebar({ activeSection, setActiveSection, onLogout, logo }
         ))}
       </nav>
 
-      <div className="p-6 border-t border-white/10">
+      <div className="p-6 border-t border-white/10 space-y-4">
+        <div className="px-4 py-2 rounded-lg bg-white/5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Database className="w-3.5 h-3.5 text-[#c9a96e]" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-white/40">Database</span>
+          </div>
+          {dbStatus === 'loading' ? (
+            <RefreshCw className="w-3 h-3 text-blue-400 animate-spin" />
+          ) : dbStatus === 'connected' ? (
+            <CheckCircle2 className="w-3 h-3 text-green-400" />
+          ) : (
+            <XCircle className="w-3 h-3 text-red-400" />
+          )}
+        </div>
+
         <button
           onClick={onLogout}
           className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-400/10 transition-all duration-300 group"

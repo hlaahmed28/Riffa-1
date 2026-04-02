@@ -107,5 +107,29 @@ export const db = {
     
     if (error) throw error;
     return data as Review[];
+  },
+
+  // --- Connection Test ---
+  async testConnection() {
+    const supabase = getSupabase();
+    if (!supabase) {
+      return { success: false, message: 'Supabase client not initialized. Check your environment variables.' };
+    }
+    
+    try {
+      // Try to fetch a single row from the settings table as a connection test
+      const { data, error } = await supabase
+        .from('settings')
+        .select('id')
+        .limit(1);
+      
+      if (error) {
+        return { success: false, message: `Connection failed: ${error.message}` };
+      }
+      
+      return { success: true, message: 'Successfully connected to Supabase!' };
+    } catch (error: any) {
+      return { success: false, message: `Connection error: ${error.message || 'Unknown error'}` };
+    }
   }
 };
