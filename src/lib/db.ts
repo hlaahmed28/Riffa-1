@@ -12,20 +12,61 @@ export const db = {
       .order('created_at', { ascending: false });
     
     if (error) throw error;
-    return data as Product[];
+    
+    return data.map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      price: p.price,
+      compareAtPrice: p.compare_at_price || p.compareatprice || p.compareAtPrice,
+      stockQuantity: p.stock_quantity || p.stockquantity || p.stockQuantity,
+      colors: p.colors,
+      sizes: p.sizes,
+      season: p.season,
+      image: p.image,
+      images: p.images,
+      description: p.description,
+      material: p.material,
+      care: p.care,
+      origin: p.origin,
+      isBestseller: p.is_bestseller || p.isbestseller || p.isBestseller,
+      status: p.status,
+      category: p.category
+    })) as Product[];
   },
 
   async updateProduct(product: Product) {
     const supabase = getSupabase();
     if (!supabase) return null;
+    
+    // Convert to snake_case for Supabase
+    const dbProduct = {
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      compare_at_price: product.compareAtPrice,
+      stock_quantity: product.stockQuantity,
+      colors: product.colors,
+      sizes: product.sizes,
+      season: product.season,
+      image: product.image,
+      images: product.images,
+      description: product.description,
+      material: product.material,
+      care: product.care,
+      origin: product.origin,
+      is_bestseller: product.isBestseller,
+      status: product.status,
+      category: product.category
+    };
+
     const { data, error } = await supabase
       .from('products')
-      .upsert(product)
+      .upsert(dbProduct)
       .select()
       .single();
     
     if (error) throw error;
-    return data as Product;
+    return product;
   },
 
   async deleteProduct(id: string) {
@@ -90,22 +131,55 @@ export const db = {
       .eq('id', 1)
       .single();
     
-    if (error) throw error;
-    return data as AppSettings;
+    if (error) {
+      if (error.code === 'PGRST116') return null; // Not found
+      throw error;
+    }
+    
+    return {
+      storeName: data.store_name || data.storename || data.storeName,
+      whatsappNumber: data.whatsapp_number || data.whatsappnumber || data.whatsappNumber,
+      shippingFeeStandard: data.shipping_fee_standard || data.shippingfeestandard || data.shippingFeeStandard,
+      governorateShippingFees: data.governorate_shipping_fees || data.governorateshippingfees || data.governorateShippingFees || {},
+      freeShippingThreshold: data.free_shipping_threshold || data.freeshippingthreshold || data.freeShippingThreshold,
+      instagramUrl: data.instagram_url || data.instagramurl || data.instagramUrl,
+      facebookUrl: data.facebook_url || data.facebookurl || data.facebookUrl,
+      tiktokUrl: data.tiktok_url || data.tiktokurl || data.tiktokUrl,
+      announcementBar: data.announcement_bar || data.announcementbar || data.announcementBar,
+      aboutText: data.about_text || data.abouttext || data.aboutText,
+      heroImage: data.hero_image || data.heroimage || data.heroImage,
+      categoryCovers: data.category_covers || data.categorycovers || data.categoryCovers || {}
+    } as AppSettings;
   },
 
   async updateSettings(settings: AppSettings) {
     const supabase = getSupabase();
     if (!supabase) return null;
+    
+    const dbSettings = {
+      id: 1,
+      store_name: settings.storeName,
+      whatsapp_number: settings.whatsappNumber,
+      shipping_fee_standard: settings.shippingFeeStandard,
+      governorate_shipping_fees: settings.governorateShippingFees,
+      free_shipping_threshold: settings.freeShippingThreshold,
+      instagram_url: settings.instagramUrl,
+      facebook_url: settings.facebookUrl,
+      tiktok_url: settings.tiktokUrl,
+      announcement_bar: settings.announcementBar,
+      about_text: settings.aboutText,
+      hero_image: settings.heroImage,
+      category_covers: settings.categoryCovers
+    };
+
     const { data, error } = await supabase
       .from('settings')
-      .update(settings)
-      .eq('id', 1)
+      .upsert(dbSettings)
       .select()
       .single();
     
     if (error) throw error;
-    return data as AppSettings;
+    return settings;
   },
 
   // --- Reviews ---
@@ -156,20 +230,43 @@ export const db = {
       .order('created_at', { ascending: false });
     
     if (error) throw error;
-    return data as PromoCode[];
+    return data.map((c: any) => ({
+      id: c.id,
+      code: c.code,
+      type: c.type || c.discount_type || c.discounttype,
+      value: c.value || c.discount_value || c.discountvalue,
+      minOrder: c.min_order || c.minorder || c.minOrder,
+      expiryDate: c.expiry_date || c.expirydate || c.expiryDate,
+      usageLimit: c.usage_limit || c.usagelimit || c.usageLimit,
+      usageCount: c.usage_count || c.usagecount || c.usageCount,
+      isActive: c.is_active || c.isactive || c.isActive
+    })) as PromoCode[];
   },
 
-  async updatePromoCode(promoCode: PromoCode) {
+  async updatePromoCode(promo: PromoCode) {
     const supabase = getSupabase();
     if (!supabase) return null;
+    
+    const dbPromo = {
+      id: promo.id,
+      code: promo.code,
+      type: promo.type,
+      value: promo.value,
+      min_order: promo.minOrder,
+      expiry_date: promo.expiryDate,
+      usage_limit: promo.usageLimit,
+      usage_count: promo.usageCount,
+      is_active: promo.isActive
+    };
+
     const { data, error } = await supabase
       .from('promo_codes')
-      .upsert(promoCode)
+      .upsert(dbPromo)
       .select()
       .single();
     
     if (error) throw error;
-    return data as PromoCode;
+    return promo;
   },
 
   async deletePromoCode(id: string) {

@@ -25,7 +25,7 @@ import { AdminSettings } from './pages/AdminSettings';
 import { AdminReviews } from './pages/AdminReviews';
 import { AdminCovers } from './pages/AdminCovers';
 import { AdminAnalytics } from './pages/AdminAnalytics';
-import { Page, Product, CartItem, Order, Customer, PromoCode, AppSettings, Review, INITIAL_PRODUCTS, INITIAL_SETTINGS, INITIAL_REVIEWS } from './types';
+import { Page, Product, CartItem, Order, Customer, PromoCode, AppSettings, Review, INITIAL_SETTINGS } from './types';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from './lib/db';
 
@@ -48,7 +48,7 @@ export default function App() {
   
   const [products, setProducts] = useState<Product[]>(() => {
     const saved = localStorage.getItem('riffa_products');
-    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+    return saved ? JSON.parse(saved) : [];
   });
   
   const [orders, setOrders] = useState<Order[]>(() => {
@@ -68,7 +68,7 @@ export default function App() {
 
   const [reviews, setReviews] = useState<Review[]>(() => {
     const saved = localStorage.getItem('riffa_reviews');
-    return saved ? JSON.parse(saved) : INITIAL_REVIEWS;
+    return saved ? JSON.parse(saved) : [];
   });
   
   const [settings, setSettings] = useState<AppSettings>(() => {
@@ -94,13 +94,25 @@ export default function App() {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const [supabaseProducts, supabaseSettings, supabaseReviews, supabaseOrders, supabasePromoCodes] = await Promise.all([
+        const results = await Promise.allSettled([
           db.getProducts(),
           db.getSettings(),
           db.getReviews(),
           db.getOrders(),
           db.getPromoCodes()
         ]);
+
+        const supabaseProducts = results[0].status === 'fulfilled' ? results[0].value : null;
+        const supabaseSettings = results[1].status === 'fulfilled' ? results[1].value : null;
+        const supabaseReviews = results[2].status === 'fulfilled' ? results[2].value : null;
+        const supabaseOrders = results[3].status === 'fulfilled' ? results[3].value : null;
+        const supabasePromoCodes = results[4].status === 'fulfilled' ? results[4].value : null;
+
+        if (results[0].status === 'rejected') console.error('Products error:', results[0].reason);
+        if (results[1].status === 'rejected') console.error('Settings error:', results[1].reason);
+        if (results[2].status === 'rejected') console.error('Reviews error:', results[2].reason);
+        if (results[3].status === 'rejected') console.error('Orders error:', results[3].reason);
+        if (results[4].status === 'rejected') console.error('Promo codes error:', results[4].reason);
 
         if (supabaseProducts) setProducts(supabaseProducts);
         if (supabaseSettings) setSettings(supabaseSettings);
