@@ -1,17 +1,11 @@
-import { getSupabase } from './supabase';
 import { Product, Order, OrderItem, PromoCode, Review, AppSettings, Customer } from '../types';
 
 export const db = {
   // --- Products ---
   async getProducts() {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
+    const res = await fetch('/api/products');
+    if (!res.ok) throw new Error('Failed to fetch products');
+    const data = await res.json();
     
     return data.map((p: any) => ({
       id: p.id,
@@ -35,10 +29,6 @@ export const db = {
   },
 
   async updateProduct(product: Product) {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    
-    // Convert to snake_case for Supabase
     const dbProduct = {
       id: product.id,
       name: product.name,
@@ -59,32 +49,31 @@ export const db = {
       category: product.category
     };
 
-    const { data, error } = await supabase
-      .from('products')
-      .upsert(dbProduct)
-      .select()
-      .single();
-    
-    if (error) throw error;
+    const res = await fetch('/api/products/upsert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dbProduct)
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      console.error('Server error details:', errorData);
+      throw new Error(`Failed to save product: ${errorData.message || res.statusText}`);
+    }
     return product;
   },
 
   async deleteProduct(id: string) {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { error } = await supabase
-      .from('products')
-      .delete()
-      .eq('id', id);
-    
-    if (error) throw error;
+    const res = await fetch('/api/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ table: 'products', id })
+    });
+    if (!res.ok) throw new Error('Failed to delete product');
     return true;
   },
 
+  // --- Orders ---
   async createOrder(order: Omit<Order, 'id'>, items: OrderItem[]) {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    
     const orderId = Math.random().toString(36).substr(2, 9);
     const dbOrder = {
       id: orderId,
@@ -104,19 +93,8 @@ export const db = {
       notes: order.notes
     };
 
-    // 1. Insert Order
-    const { data: orderData, error: orderError } = await supabase
-      .from('orders')
-      .insert([dbOrder])
-      .select()
-      .single();
-    
-    if (orderError) throw orderError;
-
-    // 2. Insert Order Items
-    const itemsWithOrderId = items.map(item => ({
+    const dbItems = items.map(item => ({
       id: Math.random().toString(36).substr(2, 9),
-      order_id: orderId,
       product_id: item.id,
       name: item.name,
       price: item.price,
@@ -125,24 +103,20 @@ export const db = {
       selected_size: item.selectedSize
     }));
 
-    const { error: itemsError } = await supabase
-      .from('order_items')
-      .insert(itemsWithOrderId);
-    
-    if (itemsError) throw itemsError;
-
-    return orderData;
+    const res = await fetch('/api/orders/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order: dbOrder, items: dbItems })
+    });
+    if (!res.ok) throw new Error('Failed to create order');
+    const saved = await res.json();
+    return saved;
   },
 
   async getOrders() {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*, order_items(*)')
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
+    const res = await fetch('/api/orders');
+    if (!res.ok) throw new Error('Failed to fetch orders');
+    const data = await res.json();
     
     return data.map((o: any) => ({
       id: o.id,
@@ -161,7 +135,7 @@ export const db = {
       status: o.status,
       notes: o.notes,
       items: (o.order_items || []).map((item: any) => ({
-        id: item.product_id, // Map product_id back to item.id for frontend compatibility
+        id: item.product_id,
         name: item.name,
         price: item.price,
         quantity: item.quantity,
@@ -171,20 +145,23 @@ export const db = {
     })) as Order[];
   },
 
+  async updateOrderStatus(id: string, status: Order['status']) {
+    const res = await fetch('/api/orders/update-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, status })
+    });
+    if (!res.ok) throw new Error('Failed to update order status');
+    return true;
+  },
+
   // --- Settings ---
   async getSettings() {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { data, error } = await supabase
-      .from('settings')
-      .select('*')
-      .eq('id', 1)
-      .single();
+    const res = await fetch('/api/settings');
+    if (!res.ok) throw new Error('Failed to fetch settings');
+    const data = await res.json();
     
-    if (error) {
-      if (error.code === 'PGRST116') return null; // Not found
-      throw error;
-    }
+    if (!data) return null;
     
     return {
       storeName: data.store_name || data.storename || data.storeName,
@@ -203,9 +180,6 @@ export const db = {
   },
 
   async updateSettings(settings: AppSettings) {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    
     const dbSettings = {
       id: 1,
       store_name: settings.storeName,
@@ -222,26 +196,21 @@ export const db = {
       category_covers: settings.categoryCovers
     };
 
-    const { data, error } = await supabase
-      .from('settings')
-      .upsert(dbSettings)
-      .select()
-      .single();
-    
-    if (error) throw error;
+    const res = await fetch('/api/settings/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dbSettings)
+    });
+    if (!res.ok) throw new Error('Failed to update settings');
     return settings;
   },
 
   // --- Reviews ---
   async getReviews() {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { data, error } = await supabase
-      .from('reviews')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const res = await fetch('/api/reviews');
+    if (!res.ok) throw new Error('Failed to fetch reviews');
+    const data = await res.json();
     
-    if (error) throw error;
     return data.map((r: any) => ({
       id: r.id,
       customerName: r.customer_name || r.customername || r.customerName,
@@ -253,9 +222,6 @@ export const db = {
   },
 
   async updateReview(review: Review) {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    
     const dbReview = {
       id: review.id,
       customer_name: review.customerName,
@@ -265,38 +231,31 @@ export const db = {
       is_featured: review.isFeatured
     };
 
-    const { data, error } = await supabase
-      .from('reviews')
-      .upsert(dbReview)
-      .select()
-      .single();
-    
-    if (error) throw error;
+    const res = await fetch('/api/reviews/upsert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dbReview)
+    });
+    if (!res.ok) throw new Error('Failed to save review');
     return review;
   },
 
   async deleteReview(id: string) {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { error } = await supabase
-      .from('reviews')
-      .delete()
-      .eq('id', id);
-    
-    if (error) throw error;
+    const res = await fetch('/api/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ table: 'reviews', id })
+    });
+    if (!res.ok) throw new Error('Failed to delete review');
     return true;
   },
 
   // --- Promo Codes ---
   async getPromoCodes() {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { data, error } = await supabase
-      .from('promo_codes')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const res = await fetch('/api/promo-codes');
+    if (!res.ok) throw new Error('Failed to fetch promo codes');
+    const data = await res.json();
     
-    if (error) throw error;
     return data.map((c: any) => ({
       id: c.id,
       code: c.code,
@@ -311,9 +270,6 @@ export const db = {
   },
 
   async updatePromoCode(promo: PromoCode) {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    
     const dbPromo = {
       id: promo.id,
       code: promo.code,
@@ -326,38 +282,31 @@ export const db = {
       is_active: promo.isActive
     };
 
-    const { data, error } = await supabase
-      .from('promo_codes')
-      .upsert(dbPromo)
-      .select()
-      .single();
-    
-    if (error) throw error;
+    const res = await fetch('/api/promo-codes/upsert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dbPromo)
+    });
+    if (!res.ok) throw new Error('Failed to save promo code');
     return promo;
   },
 
   async deletePromoCode(id: string) {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { error } = await supabase
-      .from('promo_codes')
-      .delete()
-      .eq('id', id);
-    
-    if (error) throw error;
+    const res = await fetch('/api/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ table: 'promo_codes', id })
+    });
+    if (!res.ok) throw new Error('Failed to delete promo code');
     return true;
   },
 
   // --- Customers ---
   async getCustomers() {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { data, error } = await supabase
-      .from('customers')
-      .select('*')
-      .order('total_spent', { ascending: false });
+    const res = await fetch('/api/customers');
+    if (!res.ok) throw new Error('Failed to fetch customers');
+    const data = await res.json();
     
-    if (error) throw error;
     return data.map((c: any) => ({
       id: c.id,
       name: c.name,
@@ -371,9 +320,6 @@ export const db = {
   },
 
   async updateCustomer(customer: Customer) {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    
     const dbCustomer = {
       id: customer.id,
       name: customer.name,
@@ -385,49 +331,23 @@ export const db = {
       last_order_date: customer.lastOrderDate
     };
 
-    const { data, error } = await supabase
-      .from('customers')
-      .upsert(dbCustomer)
-      .select()
-      .single();
-    
-    if (error) throw error;
+    const res = await fetch('/api/customers/upsert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dbCustomer)
+    });
+    if (!res.ok) throw new Error('Failed to save customer');
     return customer;
-  },
-
-  async updateOrderStatus(id: string, status: Order['status']) {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { error } = await supabase
-      .from('orders')
-      .update({ status })
-      .eq('id', id);
-    
-    if (error) throw error;
-    return true;
   },
 
   // --- Connection Test ---
   async testConnection() {
-    const supabase = getSupabase();
-    if (!supabase) {
-      return { success: false, message: 'Supabase client not initialized. Check your environment variables.' };
-    }
-    
     try {
-      // Try to fetch a single row from the settings table as a connection test
-      const { data, error } = await supabase
-        .from('settings')
-        .select('id')
-        .limit(1);
-      
-      if (error) {
-        return { success: false, message: `Connection failed: ${error.message}` };
-      }
-      
-      return { success: true, message: 'Successfully connected to Supabase!' };
-    } catch (error: any) {
-      return { success: false, message: `Connection error: ${error.message || 'Unknown error'}` };
+      const res = await fetch('/api/products');
+      if (res.ok) return { success: true, message: 'Successfully connected to API backend!' };
+      return { success: false, message: 'API backend returned an error.' };
+    } catch (e: any) {
+      return { success: false, message: `Failed to reach API backend: ${e.message}` };
     }
   }
 };

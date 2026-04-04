@@ -120,37 +120,11 @@ export default function App() {
         if (supabasePromoCodes) setPromoCodes(supabasePromoCodes);
         
         if (supabaseOrders) {
-          // Process orders to match the Order type (flatten order_items)
-          const processedOrders = supabaseOrders.map((o: any) => ({
-            id: o.id,
-            orderNumber: o.order_number,
-            date: o.created_at,
-            customerName: o.customer_name,
-            email: o.email,
-            phone: o.phone,
-            governorate: o.governorate,
-            address: o.address,
-            subtotal: o.subtotal,
-            shipping: o.shipping,
-            total: o.total,
-            paymentMethod: o.payment_method,
-            paymentScreenshot: o.payment_screenshot,
-            status: o.status,
-            notes: o.notes,
-            items: o.order_items.map((oi: any) => ({
-              id: oi.product_id,
-              name: oi.name,
-              price: oi.price,
-              quantity: oi.quantity,
-              selectedColor: oi.selected_color,
-              selectedSize: oi.selected_size
-            }))
-          }));
-          setOrders(processedOrders);
+          setOrders(supabaseOrders);
 
           // Derive customers from orders
           const derivedCustomers: Customer[] = [];
-          processedOrders.forEach(o => {
+          supabaseOrders.forEach(o => {
             const existing = derivedCustomers.find(c => c.email === o.email || c.phone === o.phone);
             if (existing) {
               existing.totalOrders += 1;
@@ -295,7 +269,7 @@ export default function App() {
     };
 
     try {
-      await db.createOrder(orderToSave as any, items as any);
+      const savedOrder = await db.createOrder(orderToSave as any, items as any);
       
       // Send confirmation email via our server API
       try {
@@ -313,7 +287,7 @@ export default function App() {
       }
 
       const newOrder: Order = {
-        id: Math.random().toString(36).substr(2, 9),
+        id: savedOrder.id,
         orderNumber,
         date: new Date().toISOString(),
         status: 'Pending',
