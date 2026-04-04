@@ -85,9 +85,11 @@ export const db = {
     const supabase = getSupabase();
     if (!supabase) return null;
     
+    const orderId = Math.random().toString(36).substr(2, 9);
     const dbOrder = {
+      id: orderId,
       order_number: order.orderNumber,
-      created_at: order.date,
+      created_at: order.date || new Date().toISOString(),
       customer_name: order.customerName,
       email: order.email,
       phone: order.phone,
@@ -113,7 +115,8 @@ export const db = {
 
     // 2. Insert Order Items
     const itemsWithOrderId = items.map(item => ({
-      order_id: orderData.id,
+      id: Math.random().toString(36).substr(2, 9),
+      order_id: orderId,
       product_id: item.id,
       name: item.name,
       price: item.price,
@@ -140,7 +143,32 @@ export const db = {
       .order('created_at', { ascending: false });
     
     if (error) throw error;
-    return data;
+    
+    return data.map((o: any) => ({
+      id: o.id,
+      orderNumber: o.order_number || o.ordernumber || o.orderNumber,
+      date: o.created_at || o.createdat || o.date,
+      customerName: o.customer_name || o.customername || o.customerName,
+      email: o.email,
+      phone: o.phone,
+      governorate: o.governorate,
+      address: o.address,
+      subtotal: o.subtotal,
+      shipping: o.shipping,
+      total: o.total,
+      paymentMethod: o.payment_method || o.paymentmethod || o.paymentMethod,
+      paymentScreenshot: o.payment_screenshot || o.paymentscreenshot || o.paymentScreenshot,
+      status: o.status,
+      notes: o.notes,
+      items: (o.order_items || []).map((item: any) => ({
+        id: item.product_id, // Map product_id back to item.id for frontend compatibility
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        selectedColor: item.selected_color || item.selectedcolor || item.selectedColor,
+        selectedSize: item.selected_size || item.selectedsize || item.selectedSize
+      }))
+    })) as Order[];
   },
 
   // --- Settings ---
