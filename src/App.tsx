@@ -269,7 +269,7 @@ export default function App() {
   const placeOrder = async (customerData: any, totals: any) => {
     const orderNumber = `RF-${Date.now().toString().slice(-6)}`;
     const items = cart.map(item => ({
-      product_id: item.id,
+      id: item.id,
       name: item.name,
       price: item.price,
       quantity: item.quantity,
@@ -278,8 +278,9 @@ export default function App() {
     }));
 
     const orderToSave = {
-      order_number: orderNumber,
-      customer_name: customerData.name,
+      orderNumber: orderNumber,
+      date: new Date().toISOString(),
+      customerName: customerData.name,
       email: customerData.email,
       phone: customerData.phone,
       governorate: customerData.governorate,
@@ -287,8 +288,8 @@ export default function App() {
       subtotal: totals.subtotal,
       shipping: totals.shipping,
       total: totals.total,
-      payment_method: customerData.paymentMethod,
-      payment_screenshot: customerData.paymentScreenshot,
+      paymentMethod: customerData.paymentMethod,
+      paymentScreenshot: customerData.paymentScreenshot,
       notes: customerData.notes,
       status: 'Pending' as const
     };

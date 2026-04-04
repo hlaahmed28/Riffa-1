@@ -81,14 +81,31 @@ export const db = {
     return true;
   },
 
-  // --- Orders ---
   async createOrder(order: Omit<Order, 'id'>, items: OrderItem[]) {
     const supabase = getSupabase();
     if (!supabase) return null;
+    
+    const dbOrder = {
+      order_number: order.orderNumber,
+      created_at: order.date,
+      customer_name: order.customerName,
+      email: order.email,
+      phone: order.phone,
+      governorate: order.governorate,
+      address: order.address,
+      subtotal: order.subtotal,
+      shipping: order.shipping,
+      total: order.total,
+      payment_method: order.paymentMethod,
+      payment_screenshot: order.paymentScreenshot,
+      status: order.status || 'Pending',
+      notes: order.notes
+    };
+
     // 1. Insert Order
     const { data: orderData, error: orderError } = await supabase
       .from('orders')
-      .insert([order])
+      .insert([dbOrder])
       .select()
       .single();
     
@@ -96,8 +113,13 @@ export const db = {
 
     // 2. Insert Order Items
     const itemsWithOrderId = items.map(item => ({
-      ...item,
-      order_id: orderData.id
+      order_id: orderData.id,
+      product_id: item.id,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+      selected_color: item.selectedColor,
+      selected_size: item.selectedSize
     }));
 
     const { error: itemsError } = await supabase
@@ -192,20 +214,37 @@ export const db = {
       .order('created_at', { ascending: false });
     
     if (error) throw error;
-    return data as Review[];
+    return data.map((r: any) => ({
+      id: r.id,
+      customerName: r.customer_name || r.customername || r.customerName,
+      rating: r.rating,
+      comment: r.comment,
+      date: r.date,
+      isFeatured: r.is_featured || r.isfeatured || r.isFeatured
+    })) as Review[];
   },
 
   async updateReview(review: Review) {
     const supabase = getSupabase();
     if (!supabase) return null;
+    
+    const dbReview = {
+      id: review.id,
+      customer_name: review.customerName,
+      rating: review.rating,
+      comment: review.comment,
+      date: review.date,
+      is_featured: review.isFeatured
+    };
+
     const { data, error } = await supabase
       .from('reviews')
-      .upsert(review)
+      .upsert(dbReview)
       .select()
       .single();
     
     if (error) throw error;
-    return data as Review;
+    return review;
   },
 
   async deleteReview(id: string) {
@@ -291,20 +330,41 @@ export const db = {
       .order('total_spent', { ascending: false });
     
     if (error) throw error;
-    return data as Customer[];
+    return data.map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      email: c.email,
+      phone: c.phone,
+      governorate: c.governorate,
+      totalOrders: c.total_orders || c.totalorders || c.totalOrders || 0,
+      totalSpent: c.total_spent || c.totalspent || c.totalSpent || 0,
+      lastOrderDate: c.last_order_date || c.lastorderdate || c.lastOrderDate
+    })) as Customer[];
   },
 
   async updateCustomer(customer: Customer) {
     const supabase = getSupabase();
     if (!supabase) return null;
+    
+    const dbCustomer = {
+      id: customer.id,
+      name: customer.name,
+      email: customer.email,
+      phone: customer.phone,
+      governorate: customer.governorate,
+      total_orders: customer.totalOrders,
+      total_spent: customer.totalSpent,
+      last_order_date: customer.lastOrderDate
+    };
+
     const { data, error } = await supabase
       .from('customers')
-      .upsert(customer)
+      .upsert(dbCustomer)
       .select()
       .single();
     
     if (error) throw error;
-    return data as Customer;
+    return customer;
   },
 
   async updateOrderStatus(id: string, status: Order['status']) {
