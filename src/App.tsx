@@ -25,7 +25,7 @@ import { AdminSettings } from './pages/AdminSettings';
 import { AdminReviews } from './pages/AdminReviews';
 import { AdminCovers } from './pages/AdminCovers';
 import { AdminAnalytics } from './pages/AdminAnalytics';
-import { Page, Product, CartItem, Order, Customer, PromoCode, AppSettings, Review, INITIAL_SETTINGS } from './types';
+import { Page, Product, CartItem, Order, Customer, PromoCode, AppSettings, Review, INITIAL_PRODUCTS, INITIAL_SETTINGS, INITIAL_REVIEWS } from './types';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from './lib/db';
 
@@ -48,7 +48,7 @@ export default function App() {
   
   const [products, setProducts] = useState<Product[]>(() => {
     const saved = localStorage.getItem('riffa_products');
-    return saved ? JSON.parse(saved) : [];
+    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
   });
   
   const [orders, setOrders] = useState<Order[]>(() => {
@@ -68,7 +68,7 @@ export default function App() {
 
   const [reviews, setReviews] = useState<Review[]>(() => {
     const saved = localStorage.getItem('riffa_reviews');
-    return saved ? JSON.parse(saved) : [];
+    return saved ? JSON.parse(saved) : INITIAL_REVIEWS;
   });
   
   const [settings, setSettings] = useState<AppSettings>(() => {
@@ -94,7 +94,7 @@ export default function App() {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const results = await Promise.allSettled([
+        const [supabaseProducts, supabaseSettings, supabaseReviews, supabaseOrders, supabasePromoCodes] = await Promise.all([
           db.getProducts(),
           db.getSettings(),
           db.getReviews(),
@@ -102,29 +102,43 @@ export default function App() {
           db.getPromoCodes()
         ]);
 
-        const supabaseProducts = results[0].status === 'fulfilled' ? results[0].value : null;
-        const supabaseSettings = results[1].status === 'fulfilled' ? results[1].value : null;
-        const supabaseReviews = results[2].status === 'fulfilled' ? results[2].value : null;
-        const supabaseOrders = results[3].status === 'fulfilled' ? results[3].value : null;
-        const supabasePromoCodes = results[4].status === 'fulfilled' ? results[4].value : null;
-
-        if (results[0].status === 'rejected') console.error('Products error:', results[0].reason);
-        if (results[1].status === 'rejected') console.error('Settings error:', results[1].reason);
-        if (results[2].status === 'rejected') console.error('Reviews error:', results[2].reason);
-        if (results[3].status === 'rejected') console.error('Orders error:', results[3].reason);
-        if (results[4].status === 'rejected') console.error('Promo codes error:', results[4].reason);
-
         if (supabaseProducts) setProducts(supabaseProducts);
         if (supabaseSettings) setSettings(supabaseSettings);
         if (supabaseReviews) setReviews(supabaseReviews);
         if (supabasePromoCodes) setPromoCodes(supabasePromoCodes);
         
         if (supabaseOrders) {
-          setOrders(supabaseOrders);
+          // Process orders to match the Order type (flatten order_items)
+          const processedOrders = supabaseOrders.map((o: any) => ({
+            id: o.id,
+            orderNumber: o.order_number,
+            date: o.created_at,
+            customerName: o.customer_name,
+            email: o.email,
+            phone: o.phone,
+            governorate: o.governorate,
+            address: o.address,
+            subtotal: o.subtotal,
+            shipping: o.shipping,
+            total: o.total,
+            paymentMethod: o.payment_method,
+            paymentScreenshot: o.payment_screenshot,
+            status: o.status,
+            notes: o.notes,
+            items: o.order_items.map((oi: any) => ({
+              id: oi.product_id,
+              name: oi.name,
+              price: oi.price,
+              quantity: oi.quantity,
+              selectedColor: oi.selected_color,
+              selectedSize: oi.selected_size
+            }))
+          }));
+          setOrders(processedOrders);
 
           // Derive customers from orders
           const derivedCustomers: Customer[] = [];
-          supabaseOrders.forEach(o => {
+          processedOrders.forEach(o => {
             const existing = derivedCustomers.find(c => c.email === o.email || c.phone === o.phone);
             if (existing) {
               existing.totalOrders += 1;
@@ -243,7 +257,7 @@ export default function App() {
   const placeOrder = async (customerData: any, totals: any) => {
     const orderNumber = `RF-${Date.now().toString().slice(-6)}`;
     const items = cart.map(item => ({
-      id: item.id,
+      product_id: item.id,
       name: item.name,
       price: item.price,
       quantity: item.quantity,
@@ -252,9 +266,8 @@ export default function App() {
     }));
 
     const orderToSave = {
-      orderNumber: orderNumber,
-      date: new Date().toISOString(),
-      customerName: customerData.name,
+      order_number: orderNumber,
+      customer_name: customerData.name,
       email: customerData.email,
       phone: customerData.phone,
       governorate: customerData.governorate,
@@ -262,14 +275,14 @@ export default function App() {
       subtotal: totals.subtotal,
       shipping: totals.shipping,
       total: totals.total,
-      paymentMethod: customerData.paymentMethod,
-      paymentScreenshot: customerData.paymentScreenshot,
+      payment_method: customerData.paymentMethod,
+      payment_screenshot: customerData.paymentScreenshot,
       notes: customerData.notes,
       status: 'Pending' as const
     };
 
     try {
-      const savedOrder = await db.createOrder(orderToSave as any, items as any);
+      await db.createOrder(orderToSave as any, items as any);
       
       // Send confirmation email via our server API
       try {
@@ -287,7 +300,7 @@ export default function App() {
       }
 
       const newOrder: Order = {
-        id: savedOrder.id,
+        id: Math.random().toString(36).substr(2, 9),
         orderNumber,
         date: new Date().toISOString(),
         status: 'Pending',

@@ -69,9 +69,8 @@ export function AdminOrders({ orders, setOrders, products, setProducts, customer
     const orderNumber = `RF-M-${Date.now().toString().slice(-6)}`;
 
     const orderToSave = {
-      orderNumber: orderNumber,
-      date: new Date().toISOString(),
-      customerName: manualOrder.customerName,
+      order_number: orderNumber,
+      customer_name: manualOrder.customerName,
       email: manualOrder.email,
       phone: manualOrder.phone,
       governorate: manualOrder.governorate,
@@ -79,18 +78,18 @@ export function AdminOrders({ orders, setOrders, products, setProducts, customer
       subtotal,
       shipping: manualOrder.shipping,
       total,
-      paymentMethod: manualOrder.paymentMethod,
+      payment_method: manualOrder.paymentMethod,
       notes: manualOrder.notes,
       status: 'Pending' as const
     };
 
     const itemsToSave = manualOrder.items.map(item => ({
-      id: item.id,
+      product_id: item.id,
       name: item.name,
       price: item.price,
       quantity: item.quantity,
-      selectedColor: item.selectedColor,
-      selectedSize: item.selectedSize
+      selected_color: item.selectedColor,
+      selected_size: item.selectedSize
     }));
 
     try {

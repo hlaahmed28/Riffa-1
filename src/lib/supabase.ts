@@ -6,20 +6,25 @@ let isInitialized = false;
 export const getSupabase = () => {
   if (isInitialized) return supabaseInstance;
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
 
   // Check if credentials are provided and look like valid strings (not placeholders)
   const isValidUrl = supabaseUrl && supabaseUrl.startsWith('http');
   const isValidKey = supabaseAnonKey && supabaseAnonKey.length > 20;
 
   if (!isValidUrl || !isValidKey) {
+    console.warn('Supabase credentials missing or invalid format. Check your .env file.');
     isInitialized = true;
     supabaseInstance = null;
     return null;
   }
 
   try {
+    // Log partial credentials for debugging (safe as it's only first/last few chars)
+    console.log(`Initializing Supabase with URL: ${supabaseUrl}`);
+    console.log(`Key starts with: ${supabaseAnonKey.substring(0, 10)}... and ends with: ...${supabaseAnonKey.substring(supabaseAnonKey.length - 5)}`);
+    
     supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
     isInitialized = true;
     return supabaseInstance;

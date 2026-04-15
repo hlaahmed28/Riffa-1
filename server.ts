@@ -1,6 +1,3 @@
-import dotenv from 'dotenv';
-dotenv.config();
-
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import { Resend } from 'resend';
@@ -14,15 +11,7 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json({ limit: '50mb' }));
-  app.use(express.urlencoded({ limit: '50mb', extended: true }));
-
-  // Initialize Supabase
-  const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
-  const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
-  
-  const { createClient } = await import('@supabase/supabase-js');
-  const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+  app.use(express.json());
 
   // Initialize Resend lazily
   let resendClient: Resend | null = null;
@@ -36,105 +25,6 @@ async function startServer() {
     }
     return resendClient;
   };
-
-  // --- API Routes ---
-
-  // Database Proxy Routes (to fulfill user request for standard APIs)
-  app.get('/api/products', async (req, res) => {
-    const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-    if (error) return res.status(500).json(error);
-    res.json(data);
-  });
-
-  app.get('/api/settings', async (req, res) => {
-    const { data, error } = await supabase.from('settings').select('*').eq('id', 1).single();
-    if (error && error.code !== 'PGRST116') return res.status(500).json(error);
-    res.json(data);
-  });
-
-  app.get('/api/orders', async (req, res) => {
-    const { data, error } = await supabase.from('orders').select('*, order_items(*)').order('created_at', { ascending: false });
-    if (error) return res.status(500).json(error);
-    res.json(data);
-  });
-
-  app.get('/api/promo-codes', async (req, res) => {
-    const { data, error } = await supabase.from('promo_codes').select('*').order('created_at', { ascending: false });
-    if (error) return res.status(500).json(error);
-    res.json(data);
-  });
-
-  app.get('/api/reviews', async (req, res) => {
-    const { data, error } = await supabase.from('reviews').select('*').order('created_at', { ascending: false });
-    if (error) return res.status(500).json(error);
-    res.json(data);
-  });
-
-  app.get('/api/customers', async (req, res) => {
-    const { data, error } = await supabase.from('customers').select('*').order('created_at', { ascending: false });
-    if (error) return res.status(500).json(error);
-    res.json(data);
-  });
-
-  // Saving routes
-  app.post('/api/products/upsert', async (req, res) => {
-    const { data, error } = await supabase.from('products').upsert(req.body).select().single();
-    if (error) return res.status(500).json(error);
-    res.json(data);
-  });
-
-  app.post('/api/orders/create', async (req, res) => {
-    const { order, items } = req.body;
-    // 1. Insert Order
-    const { data: orderData, error: orderError } = await supabase.from('orders').insert([order]).select().single();
-    if (orderError) return res.status(500).json(orderError);
-
-    // 2. Insert Items
-    const itemsWithOrderId = items.map((it: any) => ({ ...it, order_id: orderData.id }));
-    const { error: itemsError } = await supabase.from('order_items').insert(itemsWithOrderId);
-    if (itemsError) return res.status(500).json(itemsError);
-
-    res.json(orderData);
-  });
-
-  app.post('/api/orders/update-status', async (req, res) => {
-    const { id, status } = req.body;
-    const { error } = await supabase.from('orders').update({ status }).eq('id', id);
-    if (error) return res.status(500).json(error);
-    res.json({ success: true });
-  });
-
-  app.post('/api/settings/update', async (req, res) => {
-    const { data, error } = await supabase.from('settings').upsert(req.body).select().single();
-    if (error) return res.status(500).json(error);
-    res.json(data);
-  });
-
-  app.post('/api/reviews/upsert', async (req, res) => {
-    const { data, error } = await supabase.from('reviews').upsert(req.body).select().single();
-    if (error) return res.status(500).json(error);
-    res.json(data);
-  });
-
-  app.post('/api/promo-codes/upsert', async (req, res) => {
-    const { data, error } = await supabase.from('promo_codes').upsert(req.body).select().single();
-    if (error) return res.status(500).json(error);
-    res.json(data);
-  });
-
-  app.post('/api/customers/upsert', async (req, res) => {
-    const { data, error } = await supabase.from('customers').upsert(req.body).select().single();
-    if (error) return res.status(500).json(error);
-    res.json(data);
-  });
-
-  // Delete routes
-  app.post('/api/delete', async (req, res) => {
-    const { table, id } = req.body;
-    const { error } = await supabase.from(table).delete().eq('id', id);
-    if (error) return res.status(500).json(error);
-    res.json({ success: true });
-  });
 
   // API Routes
   app.post('/api/send-confirmation', async (req, res) => {
