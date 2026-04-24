@@ -1,252 +1,200 @@
-import { getSupabase } from './supabase';
+import { collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, query, orderBy, limit, addDoc } from 'firebase/firestore';
+import { db as firestore } from './firebase';
 import { Product, Order, OrderItem, PromoCode, Review, AppSettings, Customer } from '../types';
 
 export const db = {
   // --- Products ---
   async getProducts() {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Supabase getProducts error:', error);
+    try {
+      const q = query(collection(firestore, 'products'), orderBy('name', 'asc'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
+    } catch (error) {
+      console.error('Firebase getProducts error:', error);
       throw error;
     }
-    return data as Product[];
   },
 
   async updateProduct(product: Product) {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { data, error } = await supabase
-      .from('products')
-      .upsert(product)
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('Supabase updateProduct error:', error);
+    try {
+      const docRef = doc(firestore, 'products', product.id);
+      await setDoc(docRef, product);
+      return product;
+    } catch (error) {
+      console.error('Firebase updateProduct error:', error);
       throw error;
     }
-    return data as Product;
   },
 
   async deleteProduct(id: string) {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { error } = await supabase
-      .from('products')
-      .delete()
-      .eq('id', id);
-    
-    if (error) throw error;
-    return true;
+    try {
+      await deleteDoc(doc(firestore, 'products', id));
+      return true;
+    } catch (error) {
+      console.error('Firebase deleteProduct error:', error);
+      throw error;
+    }
   },
 
   // --- Orders ---
   async createOrder(order: Omit<Order, 'id'>, items: OrderItem[]) {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    // 1. Insert Order
-    const { data: orderData, error: orderError } = await supabase
-      .from('orders')
-      .insert([order])
-      .select()
-      .single();
-    
-    if (orderError) throw orderError;
-
-    // 2. Insert Order Items
-    const itemsWithOrderId = items.map(item => ({
-      ...item,
-      order_id: orderData.id
-    }));
-
-    const { error: itemsError } = await supabase
-      .from('order_items')
-      .insert(itemsWithOrderId);
-    
-    if (itemsError) throw itemsError;
-
-    return orderData;
+    try {
+      const orderData = {
+        ...order,
+        date: new Date().toISOString(),
+        items: items
+      };
+      const docRef = await addDoc(collection(firestore, 'orders'), orderData);
+      return { id: docRef.id, ...orderData };
+    } catch (error) {
+      console.error('Firebase createOrder error:', error);
+      throw error;
+    }
   },
 
   async getOrders() {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*, order_items(*)')
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    return data;
+    try {
+      const q = query(collection(firestore, 'orders'), orderBy('date', 'desc'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
+    } catch (error) {
+      console.error('Firebase getOrders error:', error);
+      throw error;
+    }
+  },
+
+  async updateOrderStatus(id: string, status: Order['status']) {
+    try {
+      const docRef = doc(firestore, 'orders', id);
+      await updateDoc(docRef, { status });
+      return true;
+    } catch (error) {
+      console.error('Firebase updateOrderStatus error:', error);
+      throw error;
+    }
   },
 
   // --- Settings ---
   async getSettings() {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { data, error } = await supabase
-      .from('settings')
-      .select('*')
-      .eq('id', 1)
-      .single();
-    
-    if (error) throw error;
-    return data as AppSettings;
+    try {
+      const docRef = doc(firestore, 'settings', 'global');
+      const snapshot = await getDoc(docRef);
+      if (snapshot.exists()) {
+        return snapshot.data() as AppSettings;
+      }
+      return null;
+    } catch (error) {
+      console.error('Firebase getSettings error:', error);
+      throw error;
+    }
   },
 
   async updateSettings(settings: AppSettings) {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { data, error } = await supabase
-      .from('settings')
-      .update(settings)
-      .eq('id', 1)
-      .select()
-      .single();
-    
-    if (error) throw error;
-    return data as AppSettings;
+    try {
+      const docRef = doc(firestore, 'settings', 'global');
+      await setDoc(docRef, settings);
+      return settings;
+    } catch (error) {
+      console.error('Firebase updateSettings error:', error);
+      throw error;
+    }
   },
 
   // --- Reviews ---
   async getReviews() {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { data, error } = await supabase
-      .from('reviews')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    return data as Review[];
+    try {
+      const q = query(collection(firestore, 'reviews'), orderBy('date', 'desc'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Review[];
+    } catch (error) {
+      console.error('Firebase getReviews error:', error);
+      throw error;
+    }
   },
 
   async updateReview(review: Review) {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { data, error } = await supabase
-      .from('reviews')
-      .upsert(review)
-      .select()
-      .single();
-    
-    if (error) throw error;
-    return data as Review;
+    try {
+      const docRef = doc(firestore, 'reviews', review.id);
+      await setDoc(docRef, review);
+      return review;
+    } catch (error) {
+      console.error('Firebase updateReview error:', error);
+      throw error;
+    }
   },
 
   async deleteReview(id: string) {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { error } = await supabase
-      .from('reviews')
-      .delete()
-      .eq('id', id);
-    
-    if (error) throw error;
-    return true;
+    try {
+      await deleteDoc(doc(firestore, 'reviews', id));
+      return true;
+    } catch (error) {
+      console.error('Firebase deleteReview error:', error);
+      throw error;
+    }
   },
 
   // --- Promo Codes ---
   async getPromoCodes() {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { data, error } = await supabase
-      .from('promo_codes')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    return data as PromoCode[];
+    try {
+      const q = query(collection(firestore, 'promo_codes'), orderBy('code', 'asc'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as PromoCode[];
+    } catch (error) {
+      console.error('Firebase getPromoCodes error:', error);
+      throw error;
+    }
   },
 
   async updatePromoCode(promoCode: PromoCode) {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { data, error } = await supabase
-      .from('promo_codes')
-      .upsert(promoCode)
-      .select()
-      .single();
-    
-    if (error) throw error;
-    return data as PromoCode;
+    try {
+      const docRef = doc(firestore, 'promo_codes', promoCode.id);
+      await setDoc(docRef, promoCode);
+      return promoCode;
+    } catch (error) {
+      console.error('Firebase updatePromoCode error:', error);
+      throw error;
+    }
   },
 
   async deletePromoCode(id: string) {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { error } = await supabase
-      .from('promo_codes')
-      .delete()
-      .eq('id', id);
-    
-    if (error) throw error;
-    return true;
+    try {
+      await deleteDoc(doc(firestore, 'promo_codes', id));
+      return true;
+    } catch (error) {
+      console.error('Firebase deletePromoCode error:', error);
+      throw error;
+    }
   },
 
   // --- Customers ---
   async getCustomers() {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { data, error } = await supabase
-      .from('customers')
-      .select('*')
-      .order('total_spent', { ascending: false });
-    
-    if (error) throw error;
-    return data as Customer[];
+    try {
+      const q = query(collection(firestore, 'customers'), orderBy('totalSpent', 'desc'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Customer[];
+    } catch (error) {
+      console.error('Firebase getCustomers error:', error);
+      throw error;
+    }
   },
 
   async updateCustomer(customer: Customer) {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { data, error } = await supabase
-      .from('customers')
-      .upsert(customer)
-      .select()
-      .single();
-    
-    if (error) throw error;
-    return data as Customer;
-  },
-
-  async updateOrderStatus(id: string, status: Order['status']) {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { error } = await supabase
-      .from('orders')
-      .update({ status })
-      .eq('id', id);
-    
-    if (error) throw error;
-    return true;
+    try {
+      const docRef = doc(firestore, 'customers', customer.id);
+      await setDoc(docRef, customer);
+      return customer;
+    } catch (error) {
+      console.error('Firebase updateCustomer error:', error);
+      throw error;
+    }
   },
 
   // --- Connection Test ---
   async testConnection() {
-    const supabase = getSupabase();
-    if (!supabase) {
-      return { success: false, message: 'Supabase client not initialized. Check your environment variables.' };
-    }
-    
     try {
-      // Try to fetch a single row from the settings table as a connection test
-      const { data, error } = await supabase
-        .from('settings')
-        .select('id')
-        .limit(1);
-      
-      if (error) {
-        return { success: false, message: `Connection failed: ${error.message}` };
-      }
-      
-      return { success: true, message: 'Successfully connected to Supabase!' };
+      const docRef = doc(firestore, 'settings', 'global');
+      await getDoc(docRef);
+      return { success: true, message: 'Successfully connected to Firebase!' };
     } catch (error: any) {
       return { success: false, message: `Connection error: ${error.message || 'Unknown error'}` };
     }

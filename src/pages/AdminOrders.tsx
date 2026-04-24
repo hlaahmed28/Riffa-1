@@ -68,9 +68,9 @@ export function AdminOrders({ orders, setOrders, products, setProducts, customer
     const total = subtotal + manualOrder.shipping;
     const orderNumber = `RF-M-${Date.now().toString().slice(-6)}`;
 
-    const orderToSave = {
-      order_number: orderNumber,
-      customer_name: manualOrder.customerName,
+    const orderToSave: Omit<Order, 'id'> = {
+      orderNumber,
+      customerName: manualOrder.customerName,
       email: manualOrder.email,
       phone: manualOrder.phone,
       governorate: manualOrder.governorate,
@@ -78,39 +78,28 @@ export function AdminOrders({ orders, setOrders, products, setProducts, customer
       subtotal,
       shipping: manualOrder.shipping,
       total,
-      payment_method: manualOrder.paymentMethod,
+      paymentMethod: manualOrder.paymentMethod,
       notes: manualOrder.notes,
-      status: 'Pending' as const
+      status: 'Pending',
+      date: new Date().toISOString(),
+      items: manualOrder.items
     };
 
     const itemsToSave = manualOrder.items.map(item => ({
-      product_id: item.id,
+      id: item.id,
       name: item.name,
       price: item.price,
       quantity: item.quantity,
-      selected_color: item.selectedColor,
-      selected_size: item.selectedSize
+      selectedColor: item.selectedColor,
+      selectedSize: item.selectedSize
     }));
 
     try {
-      const savedOrder = await db.createOrder(orderToSave as any, itemsToSave as any);
+      const savedOrder = await db.createOrder(orderToSave, itemsToSave);
 
       const newOrder: Order = {
-        id: savedOrder.id,
-        orderNumber,
-        date: new Date().toISOString(),
-        status: 'Pending',
-        customerName: manualOrder.customerName,
-        email: manualOrder.email,
-        phone: manualOrder.phone,
-        governorate: manualOrder.governorate,
-        address: manualOrder.address,
-        items: manualOrder.items,
-        subtotal,
-        shipping: manualOrder.shipping,
-        total,
-        paymentMethod: manualOrder.paymentMethod,
-        notes: manualOrder.notes
+        ...orderToSave,
+        id: (savedOrder as any).id,
       };
 
       setOrders(prev => [newOrder, ...prev]);

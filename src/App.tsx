@@ -42,134 +42,85 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   // --- Admin & Data State ---
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
-    return localStorage.getItem('riffa_admin_logged_in') === 'true';
-  });
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   
-  const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('riffa_products');
-    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
-  });
-  
-  const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem('riffa_orders');
-    return saved ? JSON.parse(saved) : [];
-  });
-  
-  const [customers, setCustomers] = useState<Customer[]>(() => {
-    const saved = localStorage.getItem('riffa_customers');
-    return saved ? JSON.parse(saved) : [];
-  });
-  
-  const [promoCodes, setPromoCodes] = useState<PromoCode[]>(() => {
-    const saved = localStorage.getItem('riffa_promo_codes');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [products, setProducts] = useState<Product[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [settings, setSettings] = useState<AppSettings>(INITIAL_SETTINGS);
 
-  const [reviews, setReviews] = useState<Review[]>(() => {
-    const saved = localStorage.getItem('riffa_reviews');
-    return saved ? JSON.parse(saved) : INITIAL_REVIEWS;
-  });
-  
-  const [settings, setSettings] = useState<AppSettings>(() => {
-    const saved = localStorage.getItem('riffa_settings');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return { 
-          ...INITIAL_SETTINGS, 
-          ...parsed,
-          categoryCovers: { ...INITIAL_SETTINGS.categoryCovers, ...(parsed.categoryCovers || {}) }
-        };
-      } catch (e) {
-        console.error('Error parsing settings:', e);
-        return INITIAL_SETTINGS;
-      }
-    }
-    return INITIAL_SETTINGS;
-  });
+  // --- Auth Effect ---
+  useEffect(() => {
+    import('./lib/firebase').then(({ auth }) => {
+      const unsubscribe = auth.onAuthStateChanged((user) => {
+        setIsAdminLoggedIn(!!user);
+      });
+      return () => unsubscribe();
+    });
+  }, []);
 
   // --- Persistence Effects ---
   useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const [supabaseProducts, supabaseSettings, supabaseReviews, supabaseOrders, supabasePromoCodes] = await Promise.all([
+        const [productsData, settingsData, reviewsData] = await Promise.all([
           db.getProducts(),
           db.getSettings(),
-          db.getReviews(),
-          db.getOrders(),
-          db.getPromoCodes()
+          db.getReviews()
         ]);
 
-        if (supabaseProducts) setProducts(supabaseProducts);
-        if (supabaseSettings) setSettings(supabaseSettings);
-        if (supabaseReviews) setReviews(supabaseReviews);
-        if (supabasePromoCodes) setPromoCodes(supabasePromoCodes);
+        if (productsData) setProducts(productsData);
+        if (settingsData) setSettings(settingsData);
+        if (reviewsData) setReviews(reviewsData);
         
-        if (supabaseOrders) {
-          // Process orders to match the Order type (flatten order_items)
-          const processedOrders = supabaseOrders.map((o: any) => ({
-            id: o.id,
-            orderNumber: o.order_number,
-            date: o.created_at,
-            customerName: o.customer_name,
-            email: o.email,
-            phone: o.phone,
-            governorate: o.governorate,
-            address: o.address,
-            subtotal: o.subtotal,
-            shipping: o.shipping,
-            total: o.total,
-            paymentMethod: o.payment_method,
-            paymentScreenshot: o.payment_screenshot,
-            status: o.status,
-            notes: o.notes,
-            items: o.order_items.map((oi: any) => ({
-              id: oi.product_id,
-              name: oi.name,
-              price: oi.price,
-              quantity: oi.quantity,
-              selectedColor: oi.selected_color,
-              selectedSize: oi.selected_size
-            }))
-          }));
-          setOrders(processedOrders);
+        if (isAdminLoggedIn) {
+          const [ordersData, promoCodesData] = await Promise.all([
+            db.getOrders(),
+            db.getPromoCodes()
+          ]);
 
-          // Derive customers from orders
-          const derivedCustomers: Customer[] = [];
-          processedOrders.forEach(o => {
-            const existing = derivedCustomers.find(c => c.email === o.email || c.phone === o.phone);
-            if (existing) {
-              existing.totalOrders += 1;
-              existing.totalSpent += o.total;
-              if (new Date(o.date) > new Date(existing.lastOrderDate)) {
-                existing.lastOrderDate = o.date;
+          if (promoCodesData) setPromoCodes(promoCodesData);
+          if (ordersData) {
+            setOrders(ordersData);
+
+            // Derive customers from orders
+            const derivedCustomers: Customer[] = [];
+            ordersData.forEach(o => {
+              const existing = derivedCustomers.find(c => c.email === o.email || c.phone === o.phone);
+              if (existing) {
+                existing.totalOrders += 1;
+                existing.totalSpent += o.total;
+                if (new Date(o.date) > new Date(existing.lastOrderDate)) {
+                  existing.lastOrderDate = o.date;
+                }
+              } else {
+                derivedCustomers.push({
+                  id: o.id,
+                  name: o.customerName,
+                  email: o.email,
+                  phone: o.phone,
+                  governorate: o.governorate,
+                  totalOrders: 1,
+                  totalSpent: o.total,
+                  lastOrderDate: o.date
+                });
               }
-            } else {
-              derivedCustomers.push({
-                id: o.id,
-                name: o.customerName,
-                email: o.email,
-                phone: o.phone,
-                governorate: o.governorate,
-                totalOrders: 1,
-                totalSpent: o.total,
-                lastOrderDate: o.date
-              });
-            }
-          });
-          setCustomers(derivedCustomers);
+            });
+            setCustomers(derivedCustomers);
+          }
         }
       } catch (error: any) {
-        console.error('Error fetching data from Supabase:', error);
+        console.error('Error fetching data from Firebase:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchData();
-  }, []);
+  }, [isAdminLoggedIn]);
 
   useEffect(() => {
     const savedCart = localStorage.getItem('riffa_cart');
@@ -257,7 +208,7 @@ export default function App() {
   const placeOrder = async (customerData: any, totals: any) => {
     const orderNumber = `RF-${Date.now().toString().slice(-6)}`;
     const items = cart.map(item => ({
-      product_id: item.id,
+      id: item.id,
       name: item.name,
       price: item.price,
       quantity: item.quantity,
@@ -265,9 +216,9 @@ export default function App() {
       selectedSize: item.selectedSize
     }));
 
-    const orderToSave = {
-      order_number: orderNumber,
-      customer_name: customerData.name,
+    const orderToSave: Omit<Order, 'id'> = {
+      orderNumber,
+      customerName: customerData.name,
       email: customerData.email,
       phone: customerData.phone,
       governorate: customerData.governorate,
@@ -275,14 +226,16 @@ export default function App() {
       subtotal: totals.subtotal,
       shipping: totals.shipping,
       total: totals.total,
-      payment_method: customerData.paymentMethod,
-      payment_screenshot: customerData.paymentScreenshot,
+      paymentMethod: customerData.paymentMethod,
+      paymentScreenshot: customerData.paymentScreenshot,
       notes: customerData.notes,
-      status: 'Pending' as const
+      status: 'Pending',
+      date: new Date().toISOString(),
+      items: items
     };
 
     try {
-      await db.createOrder(orderToSave as any, items as any);
+      const savedOrder = await db.createOrder(orderToSave, items);
       
       // Send confirmation email via our server API
       try {
@@ -290,30 +243,17 @@ export default function App() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            order: { ...orderToSave, subtotal: totals.subtotal, shipping: totals.shipping, total: totals.total },
+            order: orderToSave,
             items: items
           })
         });
       } catch (emailError) {
         console.error('Failed to send confirmation email:', emailError);
-        // We don't want to fail the whole order if the email fails
       }
 
       const newOrder: Order = {
-        id: Math.random().toString(36).substr(2, 9),
-        orderNumber,
-        date: new Date().toISOString(),
-        status: 'Pending',
-        ...customerData,
-        ...totals,
-        items: cart.map(item => ({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          selectedColor: item.selectedColor,
-          selectedSize: item.selectedSize
-        }))
+        ...orderToSave,
+        id: (savedOrder as any)?.id || Math.random().toString(36).substr(2, 9),
       };
       
       setOrders(prev => [newOrder, ...prev]);
@@ -358,7 +298,7 @@ export default function App() {
       setCurrentPage('confirmation');
       showToast('Order placed successfully!');
     } catch (error) {
-      console.error('Error placing order in Supabase:', error);
+      console.error('Error placing order in Firebase:', error);
       showToast('Failed to place order. Please try again.', 'error');
     }
   };
@@ -366,13 +306,17 @@ export default function App() {
   const handleAdminLogin = (success: boolean) => {
     if (success) {
       setIsAdminLoggedIn(true);
-      localStorage.setItem('riffa_admin_logged_in', 'true');
     }
   };
 
-  const handleAdminLogout = () => {
+  const handleAdminLogout = async () => {
+    try {
+      const { auth } = await import('./lib/firebase');
+      await auth.signOut();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
     setIsAdminLoggedIn(false);
-    localStorage.removeItem('riffa_admin_logged_in');
     setCurrentPage('home');
     window.location.hash = '';
   };
