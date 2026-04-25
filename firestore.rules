@@ -34,8 +34,8 @@ service cloud.firestore {
       function isValidProduct(data) {
         return data.name is string && data.name.size() > 0 && data.name.size() <= 200
           && data.price is number && data.price >= 0
-          && data.category in ['Heavy Pashmina', 'Light Pashmina', 'Shawls']
-          && (data.compareAtPrice == null || data.compareAtPrice is number)
+          && (data.category is string || !('category' in data))
+          && (!('compareAtPrice' in data) || data.compareAtPrice == null || data.compareAtPrice is number)
           && data.status in ['Active', 'Draft', 'Out of Stock'];
       }
 
