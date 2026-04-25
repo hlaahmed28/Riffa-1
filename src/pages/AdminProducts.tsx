@@ -89,8 +89,8 @@ export function AdminProducts({ products, setProducts, settings, setSettings, on
           let width = img.width;
           let height = img.height;
           
-          // Max dimension 800px for products
-          const MAX_SIZE = 800;
+          // Max dimension 500px for products
+          const MAX_SIZE = 500;
           if (width > height && width > MAX_SIZE) {
             height *= MAX_SIZE / width;
             width = MAX_SIZE;
@@ -105,7 +105,7 @@ export function AdminProducts({ products, setProducts, settings, setSettings, on
           ctx?.drawImage(img, 0, 0, width, height);
           
           // Compress carefully
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.4);
           resolve(dataUrl);
         };
         img.onerror = (error) => reject(error);
