@@ -74,22 +74,67 @@ export function AdminProducts({ products, setProducts, settings, setSettings, on
     setIsModalOpen(true);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, isGallery = false) => {
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Resize and compress product images to fit within 1MB firestore limit
+  const resizeImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          // Max dimension 800px for products
+          const MAX_SIZE = 800;
+          if (width > height && width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          } else if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          // Compress carefully
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+          resolve(dataUrl);
+        };
+        img.onerror = (error) => reject(error);
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, isGallery = false) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
+      if (!file.type.startsWith('image/')) {
+        showToast('Please upload a valid image file.', 'error');
+        return;
+      }
+      try {
+        const compressedBase64 = await resizeImage(file);
         if (isGallery) {
           setFormData(prev => ({
             ...prev,
-            images: [...(prev.images || []), result]
+            images: [...(prev.images || []), compressedBase64]
           }));
         } else {
-          setFormData({ ...formData, image: result });
+          setFormData({ ...formData, image: compressedBase64 });
         }
-      };
-      reader.readAsDataURL(file);
+      } catch (err) {
+        console.error('Error compressing image:', err);
+        showToast('Failed to process image.', 'error');
+      }
     }
   };
 
@@ -102,6 +147,7 @@ export function AdminProducts({ products, setProducts, settings, setSettings, on
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSaving(true);
     try {
       if (editingProduct) {
         const updatedProduct = { ...editingProduct, ...formData } as Product;
@@ -118,9 +164,15 @@ export function AdminProducts({ products, setProducts, settings, setSettings, on
         showToast('Product added successfully!');
       }
       setIsModalOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving product:', error);
-      showToast('Failed to save product.', 'error');
+      if (error.message?.includes('payload is too large')) {
+         showToast('Failed to save product. Total image size is still too large.', 'error');
+      } else {
+         showToast('Failed to save product.', 'error');
+      }
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -615,10 +667,15 @@ export function AdminProducts({ products, setProducts, settings, setSettings, on
                   </button>
                   <button 
                     type="submit"
-                    className="px-8 py-2 bg-[#2d2535] text-[#faf8f5] rounded-xl font-bold hover:bg-[#3d3545] transition-all shadow-lg shadow-[#2d2535]/20 flex items-center gap-2 text-sm"
+                    disabled={isSaving}
+                    className="px-8 py-2 bg-[#2d2535] text-[#faf8f5] rounded-xl font-bold hover:bg-[#3d3545] transition-all shadow-lg shadow-[#2d2535]/20 flex items-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Check className="w-4 h-4" />
-                    {editingProduct ? 'Update' : 'Save'}
+                    {isSaving ? (
+                      <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+                    ) : (
+                      <Check className="w-4 h-4" />
+                    )}
+                    {isSaving ? 'Saving...' : (editingProduct ? 'Update' : 'Save')}
                   </button>
                 </div>
               </form>
