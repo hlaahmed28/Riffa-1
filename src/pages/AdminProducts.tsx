@@ -169,7 +169,7 @@ export function AdminProducts({ products, setProducts, settings, setSettings, on
       if (error.message?.includes('payload is too large')) {
          showToast('Failed to save product. Total image size is still too large.', 'error');
       } else {
-         showToast('Failed to save product.', 'error');
+         showToast(`Failed to save product: ${error.message || 'Unknown error'}`, 'error');
       }
     } finally {
       setIsSaving(false);
