@@ -15,7 +15,7 @@ export interface Product {
   origin: string;
   isBestseller?: boolean;
   status: 'Active' | 'Draft' | 'Out of Stock';
-  category: 'Heavy Pashmina' | 'Light Pashmina' | 'Shawls';
+  category: string;
 }
 
 export interface CartItem extends Product {
@@ -99,10 +99,9 @@ export interface AppSettings {
   aboutText: string;
   heroImage: string;
   logo: string;
+  categories: string[];
   categoryCovers: {
-    'Heavy Pashmina': string;
-    'Light Pashmina': string;
-    'Shawls': string;
+    [key: string]: string;
   };
 }
 
@@ -324,6 +323,7 @@ export const INITIAL_SETTINGS: AppSettings = {
   aboutText: "At RIFFA, we believe that every pashmina tells a story. Our journey began in the heart of Cairo, where we sought to revive the ancient art of Egyptian weaving. Each piece is a testament to the skill of our local artisans, combining traditional techniques with modern luxury.",
   heroImage: "https://images.unsplash.com/photo-1520903920243-00d872a2d1c9?auto=format&fit=crop&q=80&w=1920",
   logo: "https://storage.googleapis.com/aistudio-build-assets/riffa-logo.png",
+  categories: ['Heavy Pashmina', 'Light Pashmina', 'Shawls'],
   categoryCovers: {
     'Heavy Pashmina': 'https://images.unsplash.com/photo-1606760227091-3dd870d97f1d?auto=format&fit=crop&q=80&w=800',
     'Light Pashmina': 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&q=80&w=800',

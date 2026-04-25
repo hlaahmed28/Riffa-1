@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AdminSidebar } from '../components/AdminSidebar';
-import { Save, Globe, Truck, Share2, Megaphone, FileText, Check, Database, RefreshCw, AlertCircle } from 'lucide-react';
+import { Save, Globe, Truck, Share2, Megaphone, FileText, Check, Database, RefreshCw, AlertCircle, Tags, Plus, X, Loader2 } from 'lucide-react';
 import { AppSettings, Product, Order, Customer, PromoCode } from '../types';
 import { db } from '../lib/db';
 
@@ -14,7 +14,12 @@ interface AdminSettingsProps {
 }
 
 export function AdminSettings({ settings, setSettings, onLogout, activeSection, setActiveSection, showToast }: AdminSettingsProps) {
-  const [formData, setFormData] = useState<AppSettings>(settings);
+  const [formData, setFormData] = useState<AppSettings>({
+    ...settings,
+    categories: settings.categories || ['Heavy Pashmina', 'Light Pashmina', 'Shawls']
+  });
+  const [newCategory, setNewCategory] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<{ loading: boolean; success: boolean | null; message: string }>({
     loading: false,
     success: null,
@@ -44,8 +49,46 @@ export function AdminSettings({ settings, setSettings, onLogout, activeSection, 
     testConnection();
   }, []);
 
+  const handleAddCategory = async () => {
+    if (newCategory.trim() && !(formData.categories || []).includes(newCategory.trim())) {
+      const updatedFormData = {
+        ...formData,
+        categories: [...(formData.categories || []), newCategory.trim()]
+      };
+      setFormData(updatedFormData);
+      setNewCategory('');
+      
+      // Auto-save category changes to keep tabs in sync
+      try {
+        await db.updateSettings(updatedFormData);
+        setSettings(updatedFormData);
+        showToast('Category added successfully!');
+      } catch (err) {
+        console.error('Failed to save category:', err);
+      }
+    }
+  };
+
+  const handleRemoveCategory = async (cat: string) => {
+    const updatedFormData = {
+      ...formData,
+      categories: (formData.categories || []).filter(c => c !== cat)
+    };
+    setFormData(updatedFormData);
+    
+    // Auto-save category changes to keep tabs in sync
+    try {
+      await db.updateSettings(updatedFormData);
+      setSettings(updatedFormData);
+      showToast('Category removed successfully!');
+    } catch (err) {
+      console.error('Failed to open category:', err);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSaving(true);
     try {
       await db.updateSettings(formData);
       setSettings(formData);
@@ -53,6 +96,8 @@ export function AdminSettings({ settings, setSettings, onLogout, activeSection, 
     } catch (error) {
       console.error('Error saving settings:', error);
       showToast('Failed to save settings.', 'error');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -68,10 +113,11 @@ export function AdminSettings({ settings, setSettings, onLogout, activeSection, 
           </div>
           <button 
             onClick={handleSubmit}
-            className="flex items-center gap-2 px-8 py-3 bg-[#2d2535] text-[#faf8f5] rounded-xl font-bold hover:bg-[#3d3545] transition-all shadow-lg shadow-[#2d2535]/20"
+            disabled={isSaving}
+            className="flex items-center gap-2 px-8 py-3 bg-[#2d2535] text-[#faf8f5] rounded-xl font-bold hover:bg-[#3d3545] transition-all shadow-lg shadow-[#2d2535]/20 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Save className="w-5 h-5" />
-            Save Changes
+            {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+            {isSaving ? 'Saving...' : 'Save Changes'}
           </button>
         </header>
 
@@ -245,6 +291,52 @@ export function AdminSettings({ settings, setSettings, onLogout, activeSection, 
                 onChange={(e) => setFormData({ ...formData, aboutText: e.target.value })}
                 className="w-full px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e] min-h-[150px]"
               />
+            </div>
+          </div>
+          
+          {/* Product Categories */}
+          <div className="bg-white p-8 rounded-3xl shadow-sm border border-[#e8ddd0] space-y-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Tags className="w-5 h-5 text-[#c9a96e]" />
+              <h2 className="text-lg font-bold text-[#2d2535]">Product Categories</h2>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Categories</label>
+              <div className="flex flex-wrap gap-2 mb-4">
+                {(formData.categories || []).map((cat) => (
+                  <span key={cat} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#faf8f5] border border-[#e8ddd0] rounded-lg text-sm text-[#2d2535]">
+                    {cat}
+                    <button 
+                      type="button" 
+                      onClick={() => handleRemoveCategory(cat)}
+                      className="text-gray-400 hover:text-red-500 transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddCategory(); } }}
+                  placeholder="New category name"
+                  className="flex-grow px-4 py-3 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e]"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddCategory}
+                  className="px-6 py-3 bg-[#2d2535] text-[#faf8f5] rounded-xl font-bold hover:bg-[#3d3545] transition-colors"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-[10px] text-gray-400 mt-2 italic">
+                Note: Ensure products are moved out of a category before removing it. Adding cover images for new categories is available in the Covers section.
+              </p>
             </div>
           </div>
 

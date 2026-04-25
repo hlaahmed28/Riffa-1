@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Lock, LogIn } from 'lucide-react';
 import { motion } from 'motion/react';
-import { auth } from '../lib/firebase';
-import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { auth, db } from '../lib/firebase';
+import { signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 
 interface AdminLoginProps {
   onLogin: (success: boolean) => void;
@@ -19,12 +20,37 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
     try {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
+      
       if (result.user) {
-        onLogin(true);
+        // 1. Check if it's the owner email
+        const isOwner = result.user.email === 'hlaahmedkamal@gmail.com';
+        let isStaff = false;
+
+        // 2. If not the owner, check if their UID is in the "admins" database collection
+        if (!isOwner) {
+          try {
+            const adminDoc = await getDoc(doc(db, 'admins', result.user.uid));
+            isStaff = adminDoc.exists();
+          } catch (e) {
+            console.error('Error checking admin status:', e);
+          }
+        }
+
+        if (isOwner || isStaff) {
+          onLogin(true); // Authorized!
+        } else {
+          // Unathorized: Sign them back out and show a message
+          await signOut(auth);
+          setError('This account is not authorized for staff access.');
+          onLogin(false);
+        }
       }
     } catch (err: any) {
       console.error('Google login error:', err);
-      if (err.code !== 'auth/popup-closed-by-user') {
+      // More user-friendly message for the domain error
+      if (err.code === 'auth/unauthorized-domain') {
+        setError('Domain not authorized. Please see the instructions below to fix this in your Firebase Console.');
+      } else if (err.code !== 'auth/popup-closed-by-user') {
         setError(err.message || 'Failed to sign in. Please try again.');
       }
       onLogin(false);

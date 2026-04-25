@@ -29,11 +29,10 @@ export function AdminDashboard({ products, orders, customers, promoCodes, settin
     { label: 'Promo Codes', value: promoCodes.length, icon: Ticket, color: 'bg-pink-500/10 text-pink-600' },
   ];
 
-  const categoryCounts = {
-    'Heavy Pashmina': products.filter(p => p.category === 'Heavy Pashmina').length,
-    'Light Pashmina': products.filter(p => p.category === 'Light Pashmina').length,
-    'Shawls': products.filter(p => p.category === 'Shawls').length,
-  };
+  const categoryCounts = (settings.categories || []).reduce((acc, cat) => {
+    acc[cat] = products.filter(p => p.category === cat).length;
+    return acc;
+  }, {} as Record<string, number>);
 
   return (
     <div className="flex min-h-screen bg-[#faf8f5]">

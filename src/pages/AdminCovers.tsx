@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AdminSidebar } from '../components/AdminSidebar';
-import { Save, Image as ImageIcon, Upload, Check, Layout, Monitor, Smartphone } from 'lucide-react';
+import { Save, Image as ImageIcon, Upload, Check, Layout, Monitor, Smartphone, Loader2 } from 'lucide-react';
 import { AppSettings } from '../types';
 import { db } from '../lib/db';
 
@@ -15,37 +15,104 @@ interface AdminCoversProps {
 
 export function AdminCovers({ settings, setSettings, onLogout, activeSection, setActiveSection, showToast }: AdminCoversProps) {
   const [formData, setFormData] = useState<AppSettings>(settings);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'heroImage' | keyof AppSettings['categoryCovers']) => {
-    const file = e.target.files?.[0];
-    if (file) {
+  React.useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      categories: settings.categories || prev.categories,
+    }));
+  }, [settings.categories]);
+
+  const resizeImage = (file: File, isHero: boolean): Promise<string> => {
+    return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        if (field === 'heroImage') {
-          setFormData({ ...formData, heroImage: reader.result as string });
-        } else {
-          setFormData({
-            ...formData,
-            categoryCovers: {
-              ...formData.categoryCovers,
-              [field]: reader.result as string
-            }
-          });
-        }
-      };
       reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = isHero ? 1200 : 400;
+          const MAX_HEIGHT = isHero ? 800 : 600;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          // Compress carefully to make sure it is < 1MB total across all images
+          const dataUrl = canvas.toDataURL('image/jpeg', isHero ? 0.5 : 0.4);
+          resolve(dataUrl);
+        };
+        img.onerror = (error) => reject(error);
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'heroImage' | keyof AppSettings['categoryCovers'] | string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast('Please upload a valid image file.', 'error');
+      return;
+    }
+
+    try {
+       setIsSaving(true);
+       const isHero = field === 'heroImage';
+       const compressedBase64 = await resizeImage(file, isHero);
+       
+       if (isHero) {
+         setFormData({ ...formData, heroImage: compressedBase64 });
+       } else {
+         setFormData({
+           ...formData,
+           categoryCovers: {
+             ...(formData.categoryCovers || {}),
+             [field as string]: compressedBase64
+           }
+         });
+       }
+    } catch (error) {
+       console.error("Error compressing image:", error);
+       showToast('Failed to process the image. Try a different one.', 'error');
+    } finally {
+       setIsSaving(false);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSaving(true);
     try {
       await db.updateSettings(formData);
       setSettings(formData);
       showToast('Cover images saved successfully!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving covers:', error);
-      showToast('Failed to save covers.', 'error');
+      if (error.message && error.message.includes('payload is too large')) {
+        showToast('Save failed: Image size is still too large. Try using an external image URL instead.', 'error');
+      } else {
+        showToast('Failed to save covers. Please try again.', 'error');
+      }
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -61,10 +128,11 @@ export function AdminCovers({ settings, setSettings, onLogout, activeSection, se
           </div>
           <button 
             onClick={handleSubmit}
-            className="flex items-center gap-2 px-8 py-3 bg-[#2d2535] text-[#faf8f5] rounded-xl font-bold hover:bg-[#3d3545] transition-all shadow-lg shadow-[#2d2535]/20"
+            disabled={isSaving}
+            className="flex items-center gap-2 px-8 py-3 bg-[#2d2535] text-[#faf8f5] rounded-xl font-bold hover:bg-[#3d3545] transition-all shadow-lg shadow-[#2d2535]/20 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Save className="w-5 h-5" />
-            Save Changes
+            {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+            {isSaving ? 'Saving...' : 'Save Changes'}
           </button>
         </header>
 
@@ -128,12 +196,18 @@ export function AdminCovers({ settings, setSettings, onLogout, activeSection, se
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {(['Heavy Pashmina', 'Light Pashmina', 'Shawls'] as const).map((cat) => (
+              {(formData.categories || []).map((cat) => (
                 <div key={cat} className="space-y-4">
                   <h3 className="text-sm font-bold text-[#2d2535]">{cat}</h3>
                   
                   <div className="relative aspect-[4/5] rounded-2xl overflow-hidden border border-[#e8ddd0] bg-[#faf8f5] group">
-                    <img src={formData.categoryCovers[cat]} alt={cat} className="w-full h-full object-cover" />
+                    {formData.categoryCovers?.[cat] ? (
+                      <img src={formData.categoryCovers[cat]} alt={cat} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400">
+                        <ImageIcon size={48} className="opacity-20" />
+                      </div>
+                    )}
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-4">
                       <input
                         type="file"
@@ -150,10 +224,10 @@ export function AdminCovers({ settings, setSettings, onLogout, activeSection, se
                     <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
                     <input 
                       type="text" 
-                      value={formData.categoryCovers[cat] || ''}
+                      value={formData.categoryCovers?.[cat] || ''}
                       onChange={(e) => setFormData({
                         ...formData,
-                        categoryCovers: { ...formData.categoryCovers, [cat]: e.target.value }
+                        categoryCovers: { ...(formData.categoryCovers || {}), [cat]: e.target.value }
                       })}
                       className="w-full pl-8 pr-3 py-2 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e] text-[10px]"
                       placeholder="Image URL"

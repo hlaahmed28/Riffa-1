@@ -78,13 +78,9 @@ export const Home: React.FC<HomeProps> = ({
           <div className="w-20 h-[1px] bg-gold mx-auto" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {[
-            { name: 'Heavy Pashmina', img: settings.categoryCovers?.['Heavy Pashmina'] },
-            { name: 'Light Pashmina', img: settings.categoryCovers?.['Light Pashmina'] },
-            { name: 'Shawls', img: settings.categoryCovers?.['Shawls'] }
-          ].map((cat, idx) => (
+          {(settings.categories || ['Heavy Pashmina', 'Light Pashmina', 'Shawls']).map((cat, idx) => (
             <motion.div
-              key={cat.name}
+              key={cat}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.2 }}
@@ -93,13 +89,13 @@ export const Home: React.FC<HomeProps> = ({
               onClick={() => setCurrentPage('shop')}
             >
               <img 
-                src={cat.img} 
-                alt={cat.name} 
+                src={settings.categoryCovers?.[cat] || 'https://images.unsplash.com/photo-1606760227091-3dd870d97f1d?auto=format&fit=crop&q=80&w=800'} 
+                alt={cat} 
                 className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
               />
               <div className="absolute inset-0 bg-plum/30 group-hover:bg-plum/10 transition-colors duration-500" />
               <div className="absolute inset-0 flex flex-col items-center justify-center text-offwhite space-y-2">
-                <h3 className="text-3xl font-serif tracking-wide">{cat.name}</h3>
+                <h3 className="text-3xl font-serif tracking-wide">{cat}</h3>
                 <span className="text-[10px] tracking-[0.3em] uppercase font-bold opacity-0 group-hover:opacity-100 transition-all transform translate-y-4 group-hover:translate-y-0">Shop Now</span>
               </div>
             </motion.div>

@@ -89,7 +89,7 @@ export const Shop: React.FC<ShopProps> = ({
               ))}
             </div>
             <div className="flex items-center space-x-6">
-              {['All', 'Heavy Pashmina', 'Light Pashmina', 'Shawls'].map(cat => (
+              {['All', ...(settings.categories || [])].map(cat => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}

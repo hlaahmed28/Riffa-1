@@ -49,7 +49,10 @@ export default function App() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [settings, setSettings] = useState<AppSettings>(INITIAL_SETTINGS);
+  const [settings, setSettings] = useState<AppSettings>(() => ({
+    ...INITIAL_SETTINGS,
+    categories: INITIAL_SETTINGS.categories || ['Heavy Pashmina', 'Light Pashmina', 'Shawls']
+  }));
 
   // --- Auth Effect ---
   useEffect(() => {

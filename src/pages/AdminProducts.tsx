@@ -8,37 +8,38 @@ interface AdminProductsProps {
   products: Product[];
   setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
   settings: AppSettings;
+  setSettings: React.Dispatch<React.SetStateAction<AppSettings>>;
   onLogout: () => void;
   activeSection: string;
   setActiveSection: (section: any) => void;
   showToast: (message: string, type?: 'success' | 'error') => void;
 }
 
-export function AdminProducts({ products, setProducts, settings, onLogout, activeSection, setActiveSection, showToast }: AdminProductsProps) {
+export function AdminProducts({ products, setProducts, settings, setSettings, onLogout, activeSection, setActiveSection, showToast }: AdminProductsProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'All' | 'Active' | 'Draft' | 'Out of Stock'>('All');
 
-  // Form State
-  const [formData, setFormData] = useState<Partial<Product>>({
-    name: '',
-    price: 0,
-    compareAtPrice: 0,
-    stockQuantity: 0,
-    season: 'All Year',
-    colors: [],
-    sizes: [],
-    image: '',
-    images: [],
-    description: '',
-    material: '',
-    care: '',
-    origin: '',
-    status: 'Active',
-    category: 'Heavy Pashmina'
-  });
+    // Form State
+    const [formData, setFormData] = useState<Partial<Product>>({
+      name: '',
+      price: 0,
+      compareAtPrice: 0,
+      stockQuantity: 0,
+      season: 'All Year',
+      colors: [],
+      sizes: [],
+      image: '',
+      images: [],
+      description: '',
+      material: '',
+      care: '',
+      origin: '',
+      status: 'Active',
+      category: settings.categories?.[0] || 'Uncategorized'
+    });
 
   const filteredProducts = products.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -67,7 +68,7 @@ export function AdminProducts({ products, setProducts, settings, onLogout, activ
         care: '',
         origin: '',
         status: 'Active',
-        category: 'Heavy Pashmina'
+        category: settings.categories?.[0] || 'Uncategorized'
       });
     }
     setIsModalOpen(true);
@@ -369,17 +370,63 @@ export function AdminProducts({ products, setProducts, settings, onLogout, activ
                           <option value="All Year">All Year</option>
                         </select>
                       </div>
-                      <div>
+                      <div className="flex flex-col gap-2">
                         <label className="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Category</label>
                         <select 
                           value={formData.category}
                           onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
                           className="w-full px-3 py-2 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e] text-sm"
                         >
-                          <option value="Heavy Pashmina">Heavy Pashmina</option>
-                          <option value="Light Pashmina">Light Pashmina</option>
-                          <option value="Shawls">Shawls</option>
+                          {settings.categories?.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                          {!settings.categories?.includes(formData.category || '') && formData.category && (
+                            <option value={formData.category}>{formData.category}</option>
+                          )}
                         </select>
+                        <div className="flex gap-2">
+                          <input 
+                            type="text" 
+                            id="newCategoryInput"
+                            placeholder="New category..." 
+                            className="w-full px-3 py-2 bg-[#faf8f5] border border-[#e8ddd0] rounded-xl focus:outline-none focus:border-[#c9a96e] text-xs"
+                            onKeyDown={async (e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const val = e.currentTarget.value.trim();
+                                if (val && !settings.categories?.includes(val)) {
+                                  const newCategories = [...(settings.categories || []), val];
+                                  const updatedSettings = { ...settings, categories: newCategories };
+                                  setSettings(updatedSettings);
+                                  await db.updateSettings(updatedSettings);
+                                  setFormData({ ...formData, category: val });
+                                  e.currentTarget.value = '';
+                                  showToast('Category added!');
+                                }
+                              }
+                            }}
+                          />
+                          <button 
+                            type="button"
+                            onClick={async (e) => {
+                              const input = document.getElementById('newCategoryInput') as HTMLInputElement;
+                              const val = input.value.trim();
+                              if (val && !settings.categories?.includes(val)) {
+                                const newCategories = [...(settings.categories || []), val];
+                                const updatedSettings = { ...settings, categories: newCategories };
+                                setSettings(updatedSettings);
+                                await db.updateSettings(updatedSettings);
+                                setFormData({ ...formData, category: val });
+                                input.value = '';
+                                showToast('Category added!');
+                              }
+                            }}
+                            className="bg-[#2d2535] text-[#faf8f5] px-3 rounded-xl hover:bg-[#3d3545] transition-colors"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-1 italic">Type and press enter to add</p>
                       </div>
                     </div>
 
